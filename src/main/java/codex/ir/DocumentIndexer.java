@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Default implementation of Indexer.
@@ -49,14 +50,14 @@ public class DocumentIndexer implements Indexer {
         LOGGER.debug("Document {} produced {} tokens", document.id(), tokens.size());
 
         for (final String token : tokens) {
-            final String normalized = this.normalizer.normalize(token);
+            final Optional<String> normalized = this.normalizer.normalize(token);
             LOGGER.trace("Token '{}' normalized to '{}'", token, normalized);
 
-            if (normalized == null || normalized.isBlank()) {
+            if (normalized.isEmpty() || normalized.get().isBlank()) {
                 continue;
             }
 
-            this.index.add(normalized, document.id());
+            this.index.add(normalized.get(), document.id());
             LOGGER.trace("Indexed term '{}' for document {}", normalized, document.id());
         }
     }

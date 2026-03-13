@@ -3,6 +3,7 @@ package codex;
 import codex.ir.*;
 
 import java.util.List;
+import java.util.Optional;
 
 public class Main {
 
@@ -42,10 +43,10 @@ public class Main {
 
             for (final String token : tokens) {
 
-                final String normalizedTerm = normalizer.normalize(token);
+                final Optional<String> normalizedTerm = normalizer.normalize(token);
 
-                if (!normalizedTerm.isBlank()) {
-                    invertedIndex.add(normalizedTerm, document.id());
+                if (normalizedTerm.isPresent() && !normalizedTerm.get().isBlank()) {
+                    invertedIndex.add(normalizedTerm.get(), document.id());
                 }
             }
         }

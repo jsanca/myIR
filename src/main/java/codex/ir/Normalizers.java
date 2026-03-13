@@ -40,7 +40,7 @@ public final class Normalizers {
     }
 
     public static Normalizer stopWords() {
-        return new StopWordNormalizer();
+        return new StopWordNormalizer("classpath:/stopwords_en.txt");
     }
 
     public static Normalizer stopWords(final String explicitPath) {
