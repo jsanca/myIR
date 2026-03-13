@@ -23,6 +23,7 @@ import java.util.List;
  * - phrase queries
  * - proximity search
  * - highlighting
+ *
  * @author jsanca
  */
 public class Posting {

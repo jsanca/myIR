@@ -16,9 +16,9 @@ import java.util.Optional;
  * Example usage:
  * Corpus corpus = Corpuses.inMemory();
  */
-public final class Corpuses {
+public final class Corpora {
 
-    private Corpuses() {}
+    private Corpora() {}
 
     /**
      * Creates a new in-memory implementation of a Corpus.

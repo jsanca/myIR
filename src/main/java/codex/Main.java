@@ -10,8 +10,10 @@ public class Main {
     public static void main(String[] args) {
 
         final Tokenizer tokenizer = Tokenizers.whitespace();
-        final Normalizer normalizer = Normalizers.basic();
+        final Normalizer normalizer = Normalizers.english();
+        final Corpus corpus = Corpora.inMemory();
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
+        final Indexer indexer = new DocumentIndexer(corpus, invertedIndex, tokenizer, normalizer);
 
         final String text1 = "Java is a programming language";
         final String text2 = "A search engine uses an inverted index";
@@ -38,21 +40,13 @@ public class Main {
         final List<Document> documents = List.of(doc1, doc2, doc3);
 
         for (final Document document : documents) {
-
-            final List<String> tokens = tokenizer.tokenize(document.rawContent());
-
-            for (final String token : tokens) {
-
-                final Optional<String> normalizedTerm = normalizer.normalize(token);
-
-                if (normalizedTerm.isPresent() && !normalizedTerm.get().isBlank()) {
-                    invertedIndex.add(normalizedTerm.get(), document.id());
-                }
-            }
+            indexer.index(document);
         }
 
-        System.out.println("Search for 'java': " + invertedIndex.search("java"));
-        System.out.println("Search for 'search': " + invertedIndex.search("search"));
-        System.out.println("Search for 'engine': " + invertedIndex.search("engine"));
+        final Searcher searcher = new SimpleSearcher(invertedIndex, corpus, tokenizer, normalizer);
+
+        System.out.println("Search for 'java': " + searcher.search("java"));
+        System.out.println("Search for 'search': " + searcher.search("search"));
+        System.out.println("Search for 'engine': " + searcher.search("engine"));
     }
 }
