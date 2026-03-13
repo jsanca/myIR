@@ -45,8 +45,8 @@ public class Main {
 
         final Searcher searcher = new SimpleSearcher(invertedIndex, corpus, tokenizer, normalizer);
 
-        System.out.println("Search for 'java': " + searcher.search("java"));
-        System.out.println("Search for 'search': " + searcher.search("search"));
-        System.out.println("Search for 'engine': " + searcher.search("engine"));
+        System.out.println("Search for 'java': " + searcher.searchDetailed("java"));
+        System.out.println("Search for 'search': " + searcher.searchDetailed("search"));
+        System.out.println("Search for 'engine': " + searcher.searchDetailed("engine"));
     }
 }
