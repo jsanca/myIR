@@ -1,16 +1,17 @@
-package codex.ir;
+package codex.ir.search;
 
+import codex.ir.*;
+import codex.ir.corpus.Corpus;
+import codex.ir.indexer.InvertedIndex;
+import codex.ir.indexer.Posting;
+import codex.ir.normalizer.Normalizer;
+import codex.ir.tokenizer.Tokenizer;
+import codex.ir.ranking.Ranker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Simple in-memory implementation of {@link Searcher}.
@@ -23,6 +24,7 @@ import java.util.Set;
  *  - normalizes each query token
  *  - performs lookup in the inverted index for each normalized term
  *  - merges matches using union semantics
+ *  - scores results using the configured {@link Ranker}
  *  - returns either documents or richer {@link SearchResult} instances
  */
 public class SimpleSearcher implements Searcher {
@@ -33,6 +35,7 @@ public class SimpleSearcher implements Searcher {
     private final Corpus corpus;
     private final Tokenizer tokenizer;
     private final Normalizer normalizer;
+    private final Ranker ranker;
 
     /**
      * Creates a new searcher backed by the given inverted index, corpus,
@@ -42,15 +45,18 @@ public class SimpleSearcher implements Searcher {
      * @param corpus corpus used to resolve document ids into documents
      * @param tokenizer tokenizer used to split the incoming query
      * @param normalizer normalizer used to normalize query tokens
+     * @param ranker ranker used to score and order matched documents
      */
     public SimpleSearcher(final InvertedIndex invertedIndex,
                           final Corpus corpus,
                           final Tokenizer tokenizer,
-                          final Normalizer normalizer) {
+                          final Normalizer normalizer,
+                          final Ranker ranker) {
         this.invertedIndex = Objects.requireNonNull(invertedIndex);
         this.corpus = Objects.requireNonNull(corpus);
         this.tokenizer = Objects.requireNonNull(tokenizer);
         this.normalizer = Objects.requireNonNull(normalizer);
+        this.ranker = Objects.requireNonNull(ranker);
     }
 
     /**
@@ -86,30 +92,37 @@ public class SimpleSearcher implements Searcher {
         LOGGER.debug("Search query {}", query);
 
         final List<String> queryTokens = this.tokenizer.tokenize(query);
-        final Map<String, Set<String>> matchedTermsByDocumentId = new LinkedHashMap<>();
+        final Map<String, Set<String>> matchedTermsByDocumentIdMap = new LinkedHashMap<>();
+        final Map<String, Double> scoreByDocumentIdMap = new LinkedHashMap<>();
 
         for (final String token : queryTokens) {
-            final Optional<String> normalized = this.normalizer.normalize(token);
+            final Optional<String> normalizedTokenOpt = this.normalizer.normalize(token);
 
-            if (normalized.isEmpty()) {
+            if (normalizedTokenOpt.isEmpty()) {
                 continue;
             }
 
-            final String term = normalized.get();
-            LOGGER.trace("Searching normalized term '{}'", term);
+            final String normalizedTerm = normalizedTokenOpt.get();
+            LOGGER.trace("Searching normalized term '{}'", normalizedTerm);
 
-            final Set<String> documentIds = this.invertedIndex.search(term);
-            for (final String documentId : documentIds) {
-                matchedTermsByDocumentId
+            final List<Posting> postings = this.invertedIndex.getPostings(normalizedTerm);
+
+            for (final Posting posting : postings) {
+
+                final String documentId = posting.documentId();
+                matchedTermsByDocumentIdMap
                         .computeIfAbsent(documentId, ignored -> new LinkedHashSet<>())
-                        .add(term);
+                        .add(normalizedTerm);
+
+                final double contribution = this.ranker.score(normalizedTerm, posting);
+                scoreByDocumentIdMap.merge(documentId, contribution, Double::sum);
             }
         }
 
-        LOGGER.debug("Found {} documents", matchedTermsByDocumentId.size());
+        LOGGER.debug("Found {} documents", matchedTermsByDocumentIdMap.size());
 
         final List<SearchResult> results = new ArrayList<>();
-        for (final Map.Entry<String, Set<String>> entry : matchedTermsByDocumentId.entrySet()) {
+        for (final Map.Entry<String, Set<String>> entry : matchedTermsByDocumentIdMap.entrySet()) {
             final String documentId = entry.getKey();
             final Optional<Document> document = this.corpus.get(documentId);
 
@@ -118,12 +131,21 @@ public class SimpleSearcher implements Searcher {
                 continue;
             }
 
+            final Set<String> matchingTerms = entry.getValue();
+            final double score = scoreByDocumentIdMap.getOrDefault(documentId, 0.0d);
             results.add(new SearchResult(
                     documentId,
                     document.get(),
-                    List.copyOf(entry.getValue())
+                    score,
+                    List.copyOf(matchingTerms)
             ));
         }
+
+        results.sort(Comparator.comparingDouble(SearchResult::score).reversed());
+
+        LOGGER.trace("Ordered results by score: {}", results.stream()
+                .map(result -> result.documentId() + "=" + result.score())
+                .toList());
 
         return results;
     }

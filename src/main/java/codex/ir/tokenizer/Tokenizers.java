@@ -1,8 +1,7 @@
-package codex.ir;
+package codex.ir.tokenizer;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public final class Tokenizers {
 

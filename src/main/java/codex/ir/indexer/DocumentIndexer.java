@@ -1,5 +1,9 @@
-package codex.ir;
+package codex.ir.indexer;
 
+import codex.ir.Document;
+import codex.ir.corpus.Corpus;
+import codex.ir.normalizer.Normalizer;
+import codex.ir.tokenizer.Tokenizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +60,8 @@ public class DocumentIndexer implements Indexer {
         final List<String> tokens = this.tokenizer.tokenize(content);
         LOGGER.debug("Document {} produced {} tokens", document.id(), tokens.size());
 
-        for (final String token : tokens) {
+        for (int position = 0; position < tokens.size(); position++) {
+            final String token = tokens.get(position);
             final Optional<String> normalized = this.normalizer.normalize(token);
             LOGGER.trace("Token '{}' normalized to '{}'", token, normalized);
 
@@ -65,7 +70,7 @@ public class DocumentIndexer implements Indexer {
             }
 
             final String term = normalized.get();
-            this.index.add(term, document.id());
+            this.index.add(term, document.id(), position);
             LOGGER.trace("Indexed term '{}' for document {}", term, document.id());
         }
     }

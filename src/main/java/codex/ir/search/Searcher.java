@@ -1,4 +1,6 @@
-package codex.ir;
+package codex.ir.search;
+
+import codex.ir.Document;
 
 import java.util.List;
 

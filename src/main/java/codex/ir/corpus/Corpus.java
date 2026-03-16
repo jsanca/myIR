@@ -1,4 +1,6 @@
-package codex.ir;
+package codex.ir.corpus;
+
+import codex.ir.Document;
 
 import java.util.Optional;
 

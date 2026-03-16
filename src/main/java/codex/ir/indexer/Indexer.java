@@ -1,4 +1,6 @@
-package codex.ir;
+package codex.ir.indexer;
+
+import codex.ir.Document;
 
 /**
  * Coordinates the process of taking a Document, analyzing its text,

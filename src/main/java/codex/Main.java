@@ -1,9 +1,23 @@
 package codex;
 
 import codex.ir.*;
+import codex.ir.corpus.Corpora;
+import codex.ir.corpus.Corpus;
+import codex.ir.indexer.DocumentIndexer;
+import codex.ir.indexer.Indexer;
+import codex.ir.indexer.InvertedIndex;
+import codex.ir.indexer.InvertedIndexes;
+import codex.ir.normalizer.Normalizer;
+import codex.ir.normalizer.Normalizers;
+import codex.ir.ranking.Ranker;
+import codex.ir.ranking.Rankers;
+import codex.ir.search.SearchResult;
+import codex.ir.search.Searcher;
+import codex.ir.search.SimpleSearcher;
+import codex.ir.tokenizer.Tokenizer;
+import codex.ir.tokenizer.Tokenizers;
 
 import java.util.List;
-import java.util.Optional;
 
 public class Main {
 
@@ -14,6 +28,7 @@ public class Main {
         final Corpus corpus = Corpora.inMemory();
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final Indexer indexer = new DocumentIndexer(corpus, invertedIndex, tokenizer, normalizer);
+        final Ranker ranker = Rankers.tfIdf(corpus, invertedIndex);
 
         final String text1 = "Java is a programming language";
         final String text2 = "A search engine uses an inverted index";
@@ -43,10 +58,32 @@ public class Main {
             indexer.index(document);
         }
 
-        final Searcher searcher = new SimpleSearcher(invertedIndex, corpus, tokenizer, normalizer);
+        final Searcher searcher = new SimpleSearcher(invertedIndex, corpus, tokenizer, normalizer, ranker);
 
-        System.out.println("Search for 'java': " + searcher.searchDetailed("java"));
-        System.out.println("Search for 'search': " + searcher.searchDetailed("search"));
-        System.out.println("Search for 'engine': " + searcher.searchDetailed("engine"));
+        System.out.println("How many docs are in my corpus: " + corpus.size());
+
+        printResults("java", searcher.searchDetailed("java"));
+        printResults("search", searcher.searchDetailed("search"));
+        printResults("engine", searcher.searchDetailed("engine"));
+
+    }
+
+    private static void printResults(final String query, final List<SearchResult> results) {
+        System.out.println("\nResults for query: '" + query + "'");
+
+        if (results.isEmpty()) {
+            System.out.println("  No results found.");
+            return;
+        }
+
+        int rank = 1;
+        for (final SearchResult result : results) {
+            System.out.println("  #" + rank++);
+            System.out.println("    docId : " + result.documentId());
+            System.out.println("    score : " + result.score());
+            System.out.println("    terms : " + result.matchedTerms());
+            System.out.println("    text  : " + result.document().rawContent());
+            System.out.println();
+        }
     }
 }

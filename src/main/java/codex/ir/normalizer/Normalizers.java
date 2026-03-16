@@ -1,4 +1,4 @@
-package codex.ir;
+package codex.ir.normalizer;
 
 import java.util.List;
 import java.io.BufferedReader;

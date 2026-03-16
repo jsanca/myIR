@@ -1,6 +1,5 @@
-package codex.ir;
+package codex.ir.tokenizer;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
