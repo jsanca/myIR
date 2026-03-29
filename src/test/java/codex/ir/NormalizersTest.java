@@ -1,5 +1,7 @@
 package codex.ir;
 
+import codex.ir.normalizer.Normalizer;
+import codex.ir.normalizer.Normalizers;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;

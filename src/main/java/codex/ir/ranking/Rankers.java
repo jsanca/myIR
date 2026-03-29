@@ -6,6 +6,8 @@ import codex.ir.indexer.Posting;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Factory and container for {@link Ranker} implementations.
@@ -67,6 +69,7 @@ public final class Rankers {
 
         private final Corpus corpus;
         private final InvertedIndex index;
+        private final Map<String, Double> idfCache = new ConcurrentHashMap<>();
 
         public TfIdfRanker(final Corpus corpus, final InvertedIndex index) {
             this.corpus = corpus;
@@ -81,16 +84,24 @@ public final class Rankers {
          */
         @Override
         public double idf(final String term) {
-
-            // idf = log(N / df)
-            final int corpusSize = corpus.size();
-            final int documentFrequency = index.getPostings(term).size(); // how many docs match the term
-
-            if (documentFrequency == 0) {
+            if (term == null || term.isBlank()) {
                 return 0;
             }
 
-            return Math.log((double) corpusSize / documentFrequency);
+            // compute or retrieve from cache
+            return idfCache.computeIfAbsent(term, t -> {
+                final int corpusSize = corpus.size();
+
+                final List<Posting> postings = index.getPostings(t);
+                final int documentFrequency = (postings == null) ? 0 : postings.size();
+
+                if (documentFrequency == 0 || corpusSize == 0) {
+                    return 0.0;
+                }
+
+                // classical idf = log(N / df)
+                return Math.log((double) corpusSize / documentFrequency);
+            });
         }
 
         /**
@@ -106,7 +117,15 @@ public final class Rankers {
                 return 0;
             }
 
-            return posting.termFrequency() * idf(term);
+            final int tf = posting.termFrequency();
+            if (tf <= 0) {
+                return 0;
+            }
+
+            // sublinear TF scaling: 1 + log(tf)
+            final double sublinearTf = 1.0 + Math.log(tf);
+
+            return sublinearTf * idf(term);
         }
 
 
