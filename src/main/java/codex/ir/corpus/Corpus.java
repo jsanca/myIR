@@ -63,4 +63,10 @@ public interface Corpus {
      * @return the total number of documents
      */
     int size();
+
+    /**
+     * Returns a derived corpus statistics
+     * @return a corpus stats
+     */
+    CorpusStatistics statistics();
 }

@@ -10,6 +10,9 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Default implementation of Indexer.
@@ -48,17 +51,35 @@ public class DocumentIndexer implements Indexer {
         Objects.requireNonNull(document);
         LOGGER.debug("Indexing document {}", document.id());
 
-        this.corpus.add(document);
-        LOGGER.debug("Stored raw document {} in corpus", document.id());
+        final boolean alreadyEnriched = isAlreadyEnriched(document);
+        if (alreadyEnriched) {
+            LOGGER.debug("Document {} already contains normalized metadata. Storing as-is.", document.id());
+            this.corpus.add(document);
+            return;
+        }
 
         final String content = document.rawContent();
         if (content == null || content.isBlank()) {
-            LOGGER.debug("Document {} has no content. Skipping indexing.", document.id());
+            final Document enrichedDocument = Document.builder(document)
+                    .normalizedContent("")
+                    .length(0)
+                    .uniqueTerms(0)
+                    .termFrequencies(Map.of())
+                    .build();
+
+            this.corpus.add(enrichedDocument);
+            LOGGER.debug(
+                    "Document {} has no content. Stored enriched empty document with length=0 and uniqueTerms=0.",
+                    enrichedDocument.id()
+            );
             return;
         }
 
         final List<String> tokens = this.tokenizer.tokenize(content);
         LOGGER.debug("Document {} produced {} tokens", document.id(), tokens.size());
+
+        final List<String> normalizedTerms = new ArrayList<>();
+        final Map<String, Integer> termFrequencies = new HashMap<>();
 
         for (int position = 0; position < tokens.size(); position++) {
             final String token = tokens.get(position);
@@ -70,8 +91,46 @@ public class DocumentIndexer implements Indexer {
             }
 
             final String term = normalized.get();
+            normalizedTerms.add(term);
+            termFrequencies.merge(term, 1, Integer::sum);
             this.index.add(term, document.id(), position);
             LOGGER.trace("Indexed term '{}' for document {}", term, document.id());
         }
+
+        final String normalizedContent = String.join(" ", normalizedTerms);
+        final int documentLength = normalizedTerms.size();
+        final int uniqueTermCount = termFrequencies.size();
+        LOGGER.debug(
+                "Document {} term frequencies computed for {} unique term(s)",
+                document.id(),
+                uniqueTermCount
+        );
+
+        final Document enrichedDocument = Document.builder(document)
+                .normalizedContent(normalizedContent)
+                .length(documentLength)
+                .uniqueTerms(uniqueTermCount)
+                .termFrequencies(termFrequencies)
+                .build();
+
+        this.corpus.add(enrichedDocument);
+        LOGGER.debug(
+                "Stored enriched document {} in corpus with length={} and uniqueTerms={}",
+                enrichedDocument.id(),
+                documentLength,
+                uniqueTermCount
+        );
+    }
+
+    private boolean isAlreadyEnriched(final Document document) {
+        if (document.normalizedContent() == null
+                || document.metadata() == null
+                || document.metadata().termFrequencies() == null) {
+
+            return false;
+        }
+
+        return document.metadata().length() != null
+                && document.metadata().uniqueTerms() != null;
     }
 }

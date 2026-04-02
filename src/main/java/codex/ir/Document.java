@@ -10,22 +10,28 @@ import java.util.Map;
  * - a unique identifier
  * - the raw content (original text)
  * - the normalized content (clean tokens used for indexing)
+ * - optional structured fields (for example title, body, summary, tags)
  * - metadata describing the document
  *
  * The design intentionally separates raw and normalized text so that
  * the indexing pipeline can operate only on cleaned tokens while still
  * preserving the original text for debugging, highlighting, or re‑processing.
- * @author jsanca
+ *
+ * Structured fields allow the engine to evolve toward field-aware indexing
+ * and ranking without breaking the current single-content model.
+ * @author jsanca & elo
  */
 public record Document(String id,
                        String rawContent,
                        String normalizedContent,
+                       Map<String, String> fields,
                        DocumentMetadata metadata) {
 
     /**
      * Canonical constructor ensuring metadata is never null.
      */
     public Document {
+        fields = fields == null ? Map.of() : Map.copyOf(fields);
         metadata = metadata == null ? DocumentMetadata.empty() : metadata;
     }
 
@@ -35,7 +41,24 @@ public record Document(String id,
     public static Document of(final String id,
                               final String rawContent,
                               final String normalizedContent) {
-        return new Document(id, rawContent, normalizedContent, DocumentMetadata.empty());
+        return new Document(id, rawContent, normalizedContent, Map.of(), DocumentMetadata.empty());
+    }
+
+    /**
+     * Convenience factory for a document with structured fields.
+     */
+    public static Document of(final String id,
+                              final String rawContent,
+                              final String normalizedContent,
+                              final Map<String, String> fields) {
+        return new Document(id, rawContent, normalizedContent, fields, DocumentMetadata.empty());
+    }
+
+    /**
+     * Entry point for a Builder pre-populated from an existing document.
+     */
+    public static Builder builder(final Document document) {
+        return new Builder(document);
     }
 
     /**
@@ -60,6 +83,7 @@ public record Document(String id,
             String source,
             Integer length,
             Integer uniqueTerms,
+            Map<String, Integer> termFrequencies,
             Map<String, Object> attributes
     ) {
 
@@ -67,6 +91,7 @@ public record Document(String id,
          * Ensures the attribute map is never null and is immutable.
          */
         public DocumentMetadata {
+            termFrequencies = termFrequencies == null ? Map.of() : Map.copyOf(termFrequencies);
             attributes = attributes == null ? Map.of() : Map.copyOf(attributes);
         }
 
@@ -74,7 +99,7 @@ public record Document(String id,
          * Creates an empty metadata instance.
          */
         public static DocumentMetadata empty() {
-            return new DocumentMetadata(null, null, null, null, Map.of());
+            return new DocumentMetadata(null, null, null, null, Map.of(), Map.of());
         }
     }
 
@@ -89,13 +114,38 @@ public record Document(String id,
         private String id;
         private String rawContent;
         private String normalizedContent;
+        private final Map<String, String> fields = new HashMap<>();
 
         private String title;
         private String source;
         private Integer length;
         private Integer uniqueTerms;
-
+        private final Map<String, Integer> termFrequencies = new HashMap<>();
         private final Map<String, Object> attributes = new HashMap<>();
+
+        public Builder() {
+        }
+
+        public Builder(final Document document) {
+            if (document == null) {
+                return;
+            }
+
+            this.id = document.id();
+            this.rawContent = document.rawContent();
+            this.normalizedContent = document.normalizedContent();
+            this.fields.putAll(document.fields());
+
+            final DocumentMetadata metadata = document.metadata();
+            if (metadata != null) {
+                this.title = metadata.title();
+                this.source = metadata.source();
+                this.length = metadata.length();
+                this.uniqueTerms = metadata.uniqueTerms();
+                this.termFrequencies.putAll(metadata.termFrequencies());
+                this.attributes.putAll(metadata.attributes());
+            }
+        }
 
         public Builder id(final String id) {
             this.id = id;
@@ -109,6 +159,20 @@ public record Document(String id,
 
         public Builder normalizedContent(final String normalizedContent) {
             this.normalizedContent = normalizedContent;
+            return this;
+        }
+
+        public Builder field(final String key, final String value) {
+            if (key != null && value != null) {
+                this.fields.put(key, value);
+            }
+            return this;
+        }
+
+        public Builder fields(final Map<String, String> fields) {
+            if (fields != null) {
+                this.fields.putAll(fields);
+            }
             return this;
         }
 
@@ -129,6 +193,13 @@ public record Document(String id,
 
         public Builder uniqueTerms(final Integer uniqueTerms) {
             this.uniqueTerms = uniqueTerms;
+            return this;
+        }
+
+        public Builder termFrequencies(final Map<String, Integer> termFrequencies) {
+            if (termFrequencies != null) {
+                this.termFrequencies.putAll(termFrequencies);
+            }
             return this;
         }
 
@@ -160,6 +231,7 @@ public record Document(String id,
                     source,
                     length,
                     uniqueTerms,
+                    termFrequencies,
                     attributes
             );
 
@@ -167,6 +239,7 @@ public record Document(String id,
                     id,
                     rawContent,
                     normalizedContent,
+                    fields,
                     metadata
             );
         }
