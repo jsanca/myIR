@@ -38,6 +38,27 @@ public record WebCrawlingConfig(
         disallowedPaths = disallowedPaths == null ? Set.of() : Set.copyOf(disallowedPaths);
     }
 
+    /**
+     * Lightweight configuration subset for HTTP client usage.
+     */
+    public record HttpClientConfig(
+            int connectionTimeoutMillis,
+            int readTimeoutMillis
+    ) {
+    }
+
+    /**
+     * Extracts the subset of configuration relevant for HTTP client implementations.
+     *
+     * @return configuration tailored for HTTP clients
+     */
+    public HttpClientConfig httpClientConfig() {
+        return new HttpClientConfig(
+                connectionTimeoutMillis,
+                readTimeoutMillis
+        );
+    }
+
     // ----------------------------------------------------------------------
     // Default configurations
     // ----------------------------------------------------------------------

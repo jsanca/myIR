@@ -9,6 +9,15 @@ public final class Sources {
 
     private Sources() {}
 
+    public static DocumentSource<WebPage> webPageFromSiteMap(final URI... rootUris) {
+        return webPage(defaultConfig(), rootUris);
+    }
+
+    public static DocumentSource<WebPage> webPageFromSiteMap(final WebCrawlingConfig config,
+                                                             final URI... rootUris) {
+        return webPage(config, rootUris);
+    }
+
     public static DocumentSource<WebPage> webPage(final URI... rootUris) {
         return webPage(defaultConfig(), rootUris);
     }
