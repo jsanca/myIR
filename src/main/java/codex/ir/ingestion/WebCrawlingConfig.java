@@ -1,6 +1,7 @@
 package codex.ir.ingestion;
 
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Configuration for web crawling behavior used by {@link DocumentSource} implementations
@@ -15,6 +16,7 @@ import java.util.Set;
  * @author jsanca & elo
  */
 public record WebCrawlingConfig(
+        String configId,
         int maxDepth,
         boolean followExternalLinks,
         boolean sameDomainOnly,
@@ -42,6 +44,7 @@ public record WebCrawlingConfig(
      * Lightweight configuration subset for HTTP client usage.
      */
     public record HttpClientConfig(
+            String configId,
             int connectionTimeoutMillis,
             int readTimeoutMillis
     ) {
@@ -54,6 +57,7 @@ public record WebCrawlingConfig(
      */
     public HttpClientConfig httpClientConfig() {
         return new HttpClientConfig(
+                configId,
                 connectionTimeoutMillis,
                 readTimeoutMillis
         );
@@ -130,6 +134,7 @@ public record WebCrawlingConfig(
 
     public static final class Builder {
 
+        private String configId = UUID.randomUUID().toString();
         private int maxDepth = 2;
         private boolean followExternalLinks = false;
         private boolean sameDomainOnly = true;
@@ -144,6 +149,11 @@ public record WebCrawlingConfig(
         private int readTimeoutMillis = 5_000;
 
         private Builder() {
+        }
+
+        public Builder configId(final String configId) {
+            this.configId = configId;
+            return this;
         }
 
         public Builder maxDepth(final int maxDepth) {
@@ -210,6 +220,11 @@ public record WebCrawlingConfig(
          * Builds the immutable configuration instance.
          */
         public WebCrawlingConfig build() {
+
+            if (configId == null || configId.isBlank()) {
+                throw new IllegalArgumentException("configId must not be blank");
+            }
+
             if (maxDepth < 0) {
                 throw new IllegalArgumentException("maxDepth must be >= 0");
             }
@@ -224,6 +239,7 @@ public record WebCrawlingConfig(
             }
 
             return new WebCrawlingConfig(
+                    configId,
                     maxDepth,
                     followExternalLinks,
                     sameDomainOnly,

@@ -2,9 +2,10 @@ package codex.ir.indexer;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Represents a posting entry in the inverted index.
@@ -54,14 +55,14 @@ public record Posting(
      */
     public static class Accumulator {
 
-        private final Map<String, List<Integer>> positionsByDocument = new HashMap<>();
+        private final Map<String, List<Integer>> positionsByDocument = new ConcurrentHashMap<>();
 
         /**
          * Adds a new occurrence for a document at the given position.
          */
         public void add(final String documentId, final int position) {
             positionsByDocument
-                    .computeIfAbsent(documentId, ignored -> new ArrayList<>())
+                    .computeIfAbsent(documentId, ignored -> Collections.synchronizedList(new ArrayList<>()))
                     .add(position);
         }
 
@@ -72,7 +73,11 @@ public record Posting(
             final List<Posting> postings = new ArrayList<>();
 
             for (final Map.Entry<String, List<Integer>> entry : positionsByDocument.entrySet()) {
-                final List<Integer> positions = List.copyOf(entry.getValue());
+                final List<Integer> sourcePositions = entry.getValue();
+                final List<Integer> positions;
+                synchronized (sourcePositions) {
+                    positions = List.copyOf(sourcePositions);
+                }
                 postings.add(new Posting(entry.getKey(), positions.size(), positions));
             }
 
@@ -88,7 +93,10 @@ public record Posting(
                 return null;
             }
 
-            final List<Integer> immutablePositions = List.copyOf(positions);
+            final List<Integer> immutablePositions;
+            synchronized (positions) {
+                immutablePositions = List.copyOf(positions);
+            }
             return new Posting(documentId, immutablePositions.size(), immutablePositions);
         }
     }

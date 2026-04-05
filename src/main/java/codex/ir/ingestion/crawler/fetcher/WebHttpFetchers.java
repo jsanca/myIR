@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Executors;
 
 /**
  * Factory and container for {@link WebHttpFetcher} implementations.
@@ -40,7 +41,7 @@ public final class WebHttpFetchers {
      * Default {@link WebHttpFetcher} implementation backed by the JDK
      * {@link HttpClient}.
      */
-    static final class JdkWebHttpFetcher implements WebHttpFetcher {
+    static final class JdkWebHttpFetcher implements WebHttpFetcher, AutoCloseable {
 
         private final HttpClient httpClient;
         private final WebCrawlingConfig.HttpClientConfig httpClientConfig;
@@ -48,6 +49,7 @@ public final class WebHttpFetchers {
         JdkWebHttpFetcher(final WebCrawlingConfig.HttpClientConfig httpClientConfig) {
             this(HttpClient.newBuilder()
                     .followRedirects(HttpClient.Redirect.NORMAL)
+                    .executor(Executors.newVirtualThreadPerTaskExecutor()) // todo: we should close this at the end of the life-cycle
                     .build(), httpClientConfig);
         }
 
@@ -104,6 +106,14 @@ public final class WebHttpFetchers {
                     .filter(Objects::nonNull)
                     .findFirst()
                     .orElse("");
+        }
+
+        @Override
+        public void close() throws Exception {
+            if (Objects.isNull(httpClient)) {
+
+                this.httpClient.close();
+            }
         }
     }
 }

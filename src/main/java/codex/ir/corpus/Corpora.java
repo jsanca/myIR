@@ -3,10 +3,10 @@ package codex.ir.corpus;
 import codex.ir.Document;
 import codex.ir.concurrent.Debouncer;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -41,18 +41,19 @@ public final class Corpora {
     /**
      * Simple in-memory Corpus implementation.
      *
-     * Documents are stored in a HashMap keyed by their
-     * identifier. This implementation is not thread-safe
-     * and is intended for experimentation, prototyping,
-     * or small-scale indexing scenarios.
+     * Documents are stored in a concurrent in-memory map keyed by their
+     * identifier. The corpus also maintains incremental aggregate statistics
+     * to support efficient ranking operations.
      */
     static class InMemoryCorpus implements Corpus {
 
         private static final String STATISTICS_REFRESH_KEY = "corpus-statistics-refresh";
         private static final long STATISTICS_REFRESH_DEBOUNCE_MILLIS = 250L;
-        private final Map<String, Document> documentMap = new HashMap<>();
+        private final Map<String, Document> documentMap = new ConcurrentHashMap<>();
         private final AtomicReference<CorpusStatistics> statisticsCache = new AtomicReference<>();
-        private final Debouncer debouncer = new Debouncer();
+        private final AtomicReference<Long> totalDocumentLength = new AtomicReference<>(0L);
+        private final AtomicReference<Integer> documentsWithLength = new AtomicReference<>(0);
+        private final Object statisticsMutationLock = new Object();
 
         /**
          * Adds a document to the corpus.
@@ -64,15 +65,12 @@ public final class Corpora {
         public void add(final Document document) {
 
             Objects.requireNonNull(document);
-            documentMap.put(document.id(), document);
-            statisticsCache.set(null);
-            debouncer.debounce(
-                    STATISTICS_REFRESH_KEY,
-                    this::refreshStatistics,
-                    STATISTICS_REFRESH_DEBOUNCE_MILLIS,
-                    java.util.concurrent.TimeUnit.MILLISECONDS
-            );
 
+            synchronized (statisticsMutationLock) {
+                final Document previousDocument = documentMap.put(document.id(), document);
+                adjustStatisticsForReplacement(previousDocument, document);
+                statisticsCache.set(buildCurrentStatistics());
+            }
         }
 
         /**
@@ -147,13 +145,50 @@ public final class Corpora {
                 return cached;
             }
 
-            final CorpusStatistics computed = CorpusStatistics.from(this);
-            this.statisticsCache.compareAndSet(null, computed);
+            final CorpusStatistics computed;
+            synchronized (statisticsMutationLock) {
+                computed = buildCurrentStatistics();
+                this.statisticsCache.compareAndSet(null, computed);
+            }
             return this.statisticsCache.get();
         }
 
-        private void refreshStatistics() {
-            this.statisticsCache.set(CorpusStatistics.from(this));
+        private void adjustStatisticsForReplacement(final Document previousDocument, final Document newDocument) {
+            if (previousDocument != null) {
+                final Integer previousLength = extractDocumentLength(previousDocument);
+                if (previousLength != null) {
+                    totalDocumentLength.updateAndGet(current -> current - previousLength.longValue());
+                    documentsWithLength.updateAndGet(current -> current - 1);
+                }
+            }
+
+            final Integer newLength = extractDocumentLength(newDocument);
+            if (newLength != null) {
+                totalDocumentLength.updateAndGet(current -> current + newLength.longValue());
+                documentsWithLength.updateAndGet(current -> current + 1);
+            }
+        }
+
+        private Integer extractDocumentLength(final Document document) {
+            if (document == null || document.metadata() == null) {
+                return null;
+            }
+            return document.metadata().length();
+        }
+
+        private CorpusStatistics buildCurrentStatistics() {
+            final long totalLength = this.totalDocumentLength.get();
+            final int countedDocuments = this.documentsWithLength.get();
+            final double averageDocumentLength = countedDocuments == 0
+                    ? 0.0
+                    : (double) totalLength / countedDocuments;
+
+            return new CorpusStatistics(
+                    this.documentMap.size(),
+                    totalLength,
+                    countedDocuments,
+                    averageDocumentLength
+            );
         }
     }
 }

@@ -1,6 +1,7 @@
 package codex.ir.indexer;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class InvertedIndexes {
 
@@ -24,7 +25,7 @@ public final class InvertedIndexes {
      */
     static class InMemoryInvertedIndex implements InvertedIndex {
 
-        private final Map<String, Posting.Accumulator> termAccumulatorMap = new HashMap<>();
+        private final Map<String, Posting.Accumulator> termAccumulatorMap = new ConcurrentHashMap<>();
 
         @Override
         public void add(final String term, final String documentId, final int position) {

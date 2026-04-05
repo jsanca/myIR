@@ -32,51 +32,37 @@ public final class WebPageFetchers {
     private WebPageFetchers() {
     }
 
-    private static final Consumer<Set<URI>> NOOP_LINK_SUBSCRIBER = links -> {
-        LOG.debug("links: {}", links);
-    };
 
-    public static WebPageFetcher jsoup(final WebCrawlingConfig.HttpClientConfig httpClientConfig) {
-        return new JsoupWebPageFetcher(WebHttpFetchers.jdk(httpClientConfig), NOOP_LINK_SUBSCRIBER);
-    }
-
-    public static WebPageFetcher jsoup(
-            final WebCrawlingConfig.HttpClientConfig httpClientConfig,
-            final Consumer<Set<URI>> linkSubscriber
+    public static WebPageFetcher staticHtml(
+            final WebCrawlingConfig.HttpClientConfig httpClientConfig
     ) {
-        return new JsoupWebPageFetcher(WebHttpFetchers.jdk(httpClientConfig), linkSubscriber);
+        return staticHtml(WebHttpFetchers.jdk(httpClientConfig));
     }
 
-    public static WebPageFetcher jsoup(final WebHttpFetcher webHttpFetcher) {
-        return new JsoupWebPageFetcher(webHttpFetcher, NOOP_LINK_SUBSCRIBER);
+    public static WebPageFetcher staticHtml(final WebHttpFetcher webHttpFetcher) {
+        return new JsoupWebPageFetcher(webHttpFetcher);
     }
 
-    public static WebPageFetcher jsoup(
-            final WebHttpFetcher webHttpFetcher,
-            final Consumer<Set<URI>> linkSubscriber
-    ) {
-        return new JsoupWebPageFetcher(webHttpFetcher, linkSubscriber);
-    }
 
-    public static WebPageFetcher playwright() {
+    public static WebPageFetcher dynamicHtml() {
         return new PlaywrightWebPageFetcher();
     }
 
-    private static class JsoupWebPageFetcher implements WebPageFetcher {
+    private static class JsoupWebPageFetcher implements WebPageFetcher, AutoCloseable {
 
         private final WebHttpFetcher webHttpFetcher;
-        private final Consumer<Set<URI>> linkSubscriber;
 
         private JsoupWebPageFetcher(
-                final WebHttpFetcher webHttpFetcher,
-                final Consumer<Set<URI>> linkSubscriber
+                final WebHttpFetcher webHttpFetcher
         ) {
             this.webHttpFetcher = Objects.requireNonNull(webHttpFetcher, "webHttpFetcher must not be null");
-            this.linkSubscriber = Objects.requireNonNull(linkSubscriber, "linkSubscriber must not be null");
         }
 
         @Override
-        public Optional<WebPage> fetch(final URI uri) {
+        public Optional<WebPage> fetch(final URI uri, final Consumer<Set<URI>> linkSubscriber) {
+
+            Objects.requireNonNull(uri, "uri must not be null");
+            Objects.requireNonNull(linkSubscriber, "linkSubscriber must not be null");
 
             final WebHttpResponse webHttpResponse = this.webHttpFetcher.fetch(uri);
             if (webHttpResponse == null || !webHttpResponse.isSuccessful() || !webHttpResponse.isHtml()) {
@@ -92,7 +78,7 @@ public final class WebPageFetchers {
             final String title = htmlDocParsed.title();
             final String bodyText = Optional.ofNullable(htmlDocParsed.body()).map(Element::text).orElse("");
             final Set<URI> discoveredLinks = extractLinks(htmlDocParsed, uri);
-            this.linkSubscriber.accept(discoveredLinks);
+            linkSubscriber.accept(discoveredLinks);
 
             return Optional.of(new WebPage(
                     uri,
@@ -145,11 +131,19 @@ public final class WebPageFetchers {
 
             return Set.copyOf(discoveredLinks);
         }
+
+        @Override
+        public void close() throws Exception {
+
+            if (this.webHttpFetcher != null && this.webHttpFetcher instanceof AutoCloseable closeable) {
+                closeable.close();
+            }
+        }
     }
 
     private static class PlaywrightWebPageFetcher implements WebPageFetcher {
         @Override
-        public Optional<WebPage> fetch(final URI uri) {
+        public Optional<WebPage> fetch(final URI uri, final Consumer<Set<URI>> linkSubscriber) {
             return Optional.empty();
         }
     }

@@ -5,6 +5,8 @@ import codex.ir.ingestion.WebCrawlingConfig;
 
 import java.net.URI;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * Abstraction responsible for turning a target URI into a fetched {@link WebPage}.
@@ -29,5 +31,5 @@ public interface WebPageFetcher {
      * @param uri target URI to fetch
      * @return fetched and parsed web page representation
      */
-    Optional<WebPage> fetch(URI uri);
+    Optional<WebPage> fetch(URI uri, Consumer<Set<URI>> consumer);
 }
