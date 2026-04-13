@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <p>Instances own an internal scheduler and should be closed when no longer
  * needed.</p>
+ * @author jsanca & elo
  */
 public class Debouncer implements Closeable {
 
@@ -50,23 +51,25 @@ public class Debouncer implements Closeable {
             throw new IllegalStateException("Debouncer is already closed");
         }
 
-        final ScheduledFuture<?> scheduled = scheduler.schedule(() -> {
-            try {
-                runnable.run();
-            } finally {
-                delayedMap.remove(key, scheduledTaskFor(key));
+        delayedMap.compute(key, (currentKey, previous) -> {
+            if (previous != null) {
+                previous.cancel(false);
             }
-        }, delay, unit);
 
-        final ScheduledFuture<?> previous = delayedMap.put(key, scheduled);
-        if (previous != null) {
-            previous.cancel(false);
-        }
+            return scheduler.schedule(() -> {
+                try {
+                    runnable.run();
+                } finally {
+                   cleanUpDoneScheduler(currentKey);
+                }
+            }, delay, unit);
+        });
     }
 
-    private ScheduledFuture<?> scheduledTaskFor(final String key) {
-        return delayedMap.get(key);
+    private void cleanUpDoneScheduler(final String key) {
+        delayedMap.computeIfPresent(key, (k, task) -> task.isDone() ? null : task);
     }
+
 
     public void shutdown() {
         if (closed.compareAndSet(false, true)) {
