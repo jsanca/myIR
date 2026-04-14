@@ -5,6 +5,8 @@ import codex.ir.concurrent.VTExecutor;
 import codex.ir.concurrent.VTExecutors;
 import codex.ir.ingestion.WebCrawlingConfig;
 import codex.ir.ingestion.WebPage;
+import codex.ir.util.HttpUtil;
+import codex.ir.util.UriUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -225,16 +227,16 @@ public final class WebPageSourceStrategies {
                 return false;
             }
 
-            final URI normalizedUri = normalizeUri(node.uri());
+            final URI normalizedUri = UriUtil.normalizeUri(node.uri());
             if (normalizedUri == null) {
                 return false;
             }
 
-            if (!isHttpUri(normalizedUri)) {
+            if (!HttpUtil.isHttpUri(normalizedUri)) {
                 return false;
             }
 
-            if (!isAllowedByDomainRules(normalizedUri, node.rootUri())) {
+            if (!UriUtil.isAllowedByDomainRules(normalizedUri, node.rootUri(), this.config)) {
                 return false;
             }
 
@@ -290,9 +292,9 @@ public final class WebPageSourceStrategies {
             }
 
             for (final URI discoveredLink : discoveredLinks) {
-                final URI normalizedDiscoveredLink = normalizeUri(discoveredLink);
-                if (normalizedDiscoveredLink == null || !isHttpUri(normalizedDiscoveredLink) ||
-                        !isAllowedByDomainRules(normalizedDiscoveredLink, parentNode.rootUri()) || isDisallowedPath(normalizedDiscoveredLink) ||
+                final URI normalizedDiscoveredLink = UriUtil.normalizeUri(discoveredLink);
+                if (normalizedDiscoveredLink == null || !HttpUtil.isHttpUri(normalizedDiscoveredLink) ||
+                        !UriUtil.isAllowedByDomainRules(normalizedDiscoveredLink, parentNode.rootUri(), this.config) || isDisallowedPath(normalizedDiscoveredLink) ||
                         this.visitedUriRegistry.isVisited(normalizedDiscoveredLink)) {
                     continue;
                 }
@@ -301,64 +303,8 @@ public final class WebPageSourceStrategies {
             }
         }
 
-        private URI normalizeUri(final URI uri) {  // todo: UriUtil
-            if (uri == null) {
-                return null;
-            }
-
-            final String scheme = uri.getScheme();
-            final String host = uri.getHost();
-            if (scheme == null || host == null) {
-                return null;
-            }
-
-            try {
-                return new URI(
-                        scheme.toLowerCase(),
-                        uri.getUserInfo(),
-                        host.toLowerCase(),
-                        uri.getPort(),
-                        uri.getPath(),
-                        uri.getQuery(),
-                        null
-                ).normalize();
-            } catch (final Exception exception) {
-                LOGGER.debug("Ignoring URI that could not be normalized: {}", uri, exception);
-                return null;
-            }
-        }
-
-        private boolean isHttpUri(final URI uri) { // todo: this for HttpUtil
-            final String scheme = uri.getScheme();
-            return "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
-        }
-
-        private boolean isAllowedByDomainRules(final URI candidateUri, final URI rootUri) {  // todo: this may be refactored to a class
-            final String candidateHost = candidateUri.getHost();
-            if (candidateHost == null || candidateHost.isBlank()) {
-                return false;
-            }
-
-            if (!this.config.allowedDomains().isEmpty() && !this.config.allowedDomains().contains(candidateHost)) {
-                return false;
-            }
-
-            if (this.config.sameDomainOnly()) {
-                final String rootHost = rootUri.getHost();
-                if (!candidateHost.equalsIgnoreCase(rootHost)) {
-                    return false;
-                }
-            }
-
-            if (!this.config.followExternalLinks() && rootUri.getHost() != null
-                    && !candidateHost.equalsIgnoreCase(rootUri.getHost())) {
-                return false;
-            }
-
-            return true;
-        }
-
         private boolean isDisallowedPath(final URI uri) {
+
             final String path = uri.getPath() == null ? "" : uri.getPath();
             return this.config.disallowedPaths().stream().anyMatch(path::startsWith);
         }

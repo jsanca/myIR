@@ -51,7 +51,7 @@ public class Debouncer implements Closeable {
             throw new IllegalStateException("Debouncer is already closed");
         }
 
-        delayedMap.compute(key, (currentKey, previous) -> {
+        final ScheduledFuture<?> scheduled = delayedMap.compute(key, (currentKey, previous) -> {
             if (previous != null) {
                 previous.cancel(false);
             }
@@ -60,10 +60,14 @@ public class Debouncer implements Closeable {
                 try {
                     runnable.run();
                 } finally {
-                   cleanUpDoneScheduler(currentKey);
+                    cleanUpDoneScheduler(currentKey);
                 }
             }, delay, unit);
         });
+
+        if (scheduled.isDone()) {
+            delayedMap.remove(key, scheduled);
+        }
     }
 
     private void cleanUpDoneScheduler(final String key) {

@@ -6,6 +6,7 @@ import codex.ir.corpus.CorpusStatistics;
 import codex.ir.indexer.Indexer;
 import codex.ir.indexer.InvertedIndex;
 import codex.ir.indexer.Posting;
+import codex.ir.util.TermWeightingUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -165,7 +166,7 @@ public final class Rankers {
                 }
 
                 // classical idf = log(N / df)
-                return Math.log((double) corpusSize / documentFrequency);
+                return TermWeightingUtils.classicIdf(corpusSize, documentFrequency);
             });
         }
 
@@ -182,32 +183,16 @@ public final class Rankers {
                 return 0;
             }
 
-            final int tf = extractTermFrequency(corpus, posting, term);
+            final int tf = posting.termFrequency();
             if (tf <= 0) {
                 return 0;
             }
 
-            // sublinear TF scaling: 1 + log(tf)
-            final double sublinearTf = 1.0 + Math.log(tf);
-
+            final double sublinearTf = TermWeightingUtils.sublinearTf(tf);
             return sublinearTf * idf(term);
         }
 
 
-    }
-    private static int extractTermFrequency(final Corpus corpus, final Posting posting, final String term) {
-        final Optional<Document> documentOpt = corpus.get(posting.documentId());
-        if (documentOpt.isEmpty() || documentOpt.get().metadata() == null) {
-            return 0;
-        }
-
-        final Document document = documentOpt.get();
-        final Map<String, Integer> termFrequencies = document.metadata().termFrequencies();
-        if (termFrequencies == null || termFrequencies.isEmpty()) {
-            return 0;
-        }
-
-        return termFrequencies.getOrDefault(term, 0);
     }
 
     private static int extractDocumentLength(final Corpus corpus, final Posting posting) {
@@ -286,8 +271,7 @@ public final class Rankers {
                     return 0.0;
                 }
 
-                return Math.log(1.0 + ((double) (corpusSize - documentFrequency + 0.5)
-                        / (documentFrequency + 0.5)));
+                return TermWeightingUtils.bm25Idf(corpusSize, documentFrequency);
             });
         }
 
@@ -297,7 +281,7 @@ public final class Rankers {
                 return 0;
             }
 
-            final int tf = extractTermFrequency(corpus, posting, term);
+            final int tf = posting.termFrequency();
             if (tf <= 0) {
                 return 0;
             }

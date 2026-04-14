@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Utility factory class for creating Corpus implementations.
@@ -44,13 +45,22 @@ public final class Corpora {
      * Documents are stored in a concurrent in-memory map keyed by their
      * identifier. The corpus also maintains incremental aggregate statistics
      * to support efficient ranking operations.
+     *
+     * The statistics projection is exposed as an immutable snapshot that is
+     * refreshed in a debounced way after corpus mutations. This keeps
+     * repeated ranking operations efficient while avoiding unnecessary
+     * snapshot rebuilds during ingestion bursts.
      */
     static class InMemoryCorpus implements Corpus {
 
         private static final String STATISTICS_REFRESH_KEY = "corpus-statistics-refresh";
         private static final long STATISTICS_REFRESH_DEBOUNCE_MILLIS = 250L;
         private final Map<String, Document> documentMap = new ConcurrentHashMap<>();
-        private final AtomicReference<CorpusStatistics> statisticsCache = new AtomicReference<>();
+        private final Debouncer debouncer = new Debouncer();
+        private final AtomicReference<Long> statisticsSnapshotVersion = new AtomicReference<>(0L);
+        private final AtomicReference<CorpusStatistics> statisticsCache = new AtomicReference<>(
+                CorpusStatistics.from(0L, 0, 0L, 0)
+        );
         private final AtomicReference<Long> totalDocumentLength = new AtomicReference<>(0L);
         private final AtomicReference<Integer> documentsWithLength = new AtomicReference<>(0);
         private final Object statisticsMutationLock = new Object();
@@ -69,7 +79,7 @@ public final class Corpora {
             synchronized (statisticsMutationLock) {
                 final Document previousDocument = documentMap.put(document.id(), document);
                 adjustStatisticsForReplacement(previousDocument, document);
-                statisticsCache.set(buildCurrentStatistics());
+                scheduleStatisticsSnapshotRefresh();
             }
         }
 
@@ -130,26 +140,16 @@ public final class Corpora {
         /**
          * Returns aggregated statistics describing the current corpus state.
          *
-         * The statistics projection is cached and recomputed lazily only after
-         * the corpus changes. This keeps repeated ranking operations efficient
-         * while preserving a clean responsibility boundary: the corpus owns its
-         * own derived metadata.
+         * The statistics projection is exposed as an immutable snapshot that is
+         * refreshed in a debounced way after corpus mutations. This keeps
+         * repeated ranking operations efficient while avoiding unnecessary
+         * snapshot rebuilds during ingestion bursts.
          *
          * @return immutable aggregated corpus statistics for the current corpus
          */
         @Override
         public CorpusStatistics statistics() {
 
-            final CorpusStatistics cached = this.statisticsCache.get();
-            if (cached != null) {
-                return cached;
-            }
-
-            final CorpusStatistics computed;
-            synchronized (statisticsMutationLock) {
-                computed = buildCurrentStatistics();
-                this.statisticsCache.compareAndSet(null, computed);
-            }
             return this.statisticsCache.get();
         }
 
@@ -176,18 +176,26 @@ public final class Corpora {
             return document.metadata().length();
         }
 
-        private CorpusStatistics buildCurrentStatistics() {
-            final long totalLength = this.totalDocumentLength.get();
-            final int countedDocuments = this.documentsWithLength.get();
-            final double averageDocumentLength = countedDocuments == 0
-                    ? 0.0
-                    : (double) totalLength / countedDocuments;
+        private void scheduleStatisticsSnapshotRefresh() {
+            this.debouncer.debounce(
+                    STATISTICS_REFRESH_KEY,
+                    () -> {
+                        synchronized (statisticsMutationLock) {
+                            final long nextVersion = this.statisticsSnapshotVersion.updateAndGet(current -> current + 1L);
+                            this.statisticsCache.set(buildCurrentStatisticsSnapshot(nextVersion));
+                        }
+                    },
+                    STATISTICS_REFRESH_DEBOUNCE_MILLIS,
+                    TimeUnit.MILLISECONDS
+            );
+        }
 
-            return new CorpusStatistics(
+        private CorpusStatistics buildCurrentStatisticsSnapshot(final long version) {
+            return CorpusStatistics.from(
+                    version,
                     this.documentMap.size(),
-                    totalLength,
-                    countedDocuments,
-                    averageDocumentLength
+                    this.totalDocumentLength.get(),
+                    this.documentsWithLength.get()
             );
         }
     }

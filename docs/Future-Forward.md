@@ -237,3 +237,57 @@ Near-term direction:
 Guiding principle:
 
 > Prefer real ingestion pressure over speculative internal structures.
+
+---
+
+## 6. Corpus Publication and Write Model (Future Direction)
+
+A design discussion identified a future architectural improvement around how the engine handles mutable corpus state versus published read state.
+
+### Current pragmatic model
+
+For now, the engine keeps the current approach:
+
+- `Corpus` remains directly mutable through `add(...)`
+- aggregate counters are updated incrementally
+- `CorpusStatistics` is exposed as a debounced immutable snapshot
+- synchronization is still used to preserve compound consistency between document storage and aggregate counters
+
+This model is acceptable for the current phase because it keeps the API small and avoids introducing a larger write/session abstraction too early.
+
+### Why this may change later
+
+The current design mixes two kinds of state:
+
+- live mutable corpus state
+- published snapshot-style aggregate state
+
+That is a reasonable short-term tradeoff, but it leaves some semantics intentionally loose:
+
+- readers may observe live corpus contents while statistics still reflect the previous published snapshot
+- write ordering and publication boundaries are implicit
+- synchronization remains part of the correctness model
+
+### Future direction
+
+A future iteration may introduce a more explicit publication and write model.
+
+Possible direction:
+
+- a `CorpusSnapshot` abstraction representing published immutable read state
+- a dedicated `CorpusWriter` / `IndexWriter` abstraction for mutation
+- queued or batched writes
+- explicit publish / flush / commit boundaries
+
+Potential value:
+
+- clearer semantics between live mutation and published read visibility
+- less ad hoc synchronization inside `Corpus`
+- a design that aligns better with larger ingestion workloads
+- a better foundation for vector stores, clustering, and future retrieval pipelines
+
+Decision:
+
+- do not implement `CorpusSnapshot` or `CorpusWriter` yet
+- keep the current model for now
+- revisit this once ingestion pressure or corpus growth justifies the added abstraction
