@@ -1,358 +1,273 @@
 
 
-# myIR – Mini Information Retrieval Engine
+# myIR – Information Retrieval Engine in Java
 
-This project is a **didactic implementation of a small search engine written in Java**, inspired by classic Information Retrieval (IR) systems such as Lucene.
+`myIR` is a **didactic but increasingly serious Information Retrieval (IR) engine written in Java**.
 
-The goal is not to compete with Lucene but to **reconstruct the core concepts of a search engine from scratch** for learning, experimentation, and future research projects.
+It began as a reconstruction of the classical foundations of search engines—tokenization, normalization, inverted indexes, TF‑IDF, cosine similarity—but has evolved into a broader **experimentation platform** for crawling, lexical retrieval, vector retrieval, concurrency, and architectural exploration.
+
+The goal is not to compete with Lucene or Elasticsearch. The goal is to **understand and rebuild core IR ideas from first principles**, while allowing the system to grow into more realistic retrieval experiments over time.
+
+---
+
+# What the Project Is Today
+
+Today, `myIR` is no longer just a toy inverted index.
+
+It already includes:
+
+- lexical indexing and ranking,
+- web crawling and ingestion,
+- concurrent traversal using **Virtual Threads**,
+- sparse vector indexing,
+- preliminary vector search,
+- URI canonicalization for cleaner crawling identity,
+- and explicit architectural decisions documented through ADRs.
+
+This makes the project both:
+
+- a learning vehicle for classical IR,
+- and a playground for more advanced retrieval ideas.
 
 ---
 
 # Project Goals
 
-1. Rebuild the foundations of classic Information Retrieval.
-2. Implement a minimal but functional inverted index.
-3. Experiment with ranking algorithms such as TF and TF‑IDF.
-4. Create a foundation for more advanced experiments such as semantic graphs and embeddings.
-
-This project is intentionally simple and incremental.
-
----
-
-# Development Roadmap
-
-## Phase 1 – Basic Inverted Index (MVP)
-
-Goal: Index a set of `.txt` documents and allow simple term searches.
-
-Components:
-
-- `Document`
-- `Tokenizer`
-- `Normalizer`
-- `StopWordsFilter`
-- `InvertedIndex`
-- `Indexer`
-- `SearchEngine`
-
-Pipeline:
-
-```
-Documents (.txt)
-      ↓
-Tokenizer
-      ↓
-Normalization
-      ↓
-Stop Words Filter
-      ↓
-Inverted Index
-```
-
-Example index structure:
-
-```
-java   → doc1, doc3
-search → doc2
-vector → doc1
-```
-
-Example query:
-
-```
-query: "java"
-result: doc1, doc3
-```
-
----
-
-## Phase 2 – Term Frequency
-
-Extend the inverted index to store **term frequencies per document**.
-
-Example:
-
-```
-java → { doc1:3, doc3:7 }
-```
-
-This allows the engine to begin ranking results.
-
----
-
-## Phase 3 – TF‑IDF Ranking
-
-Introduce ranking based on:
-
-- Term Frequency (TF)
-- Inverse Document Frequency (IDF)
-
-This enables scoring documents according to relevance.
-
-Example query:
-
-```
-"java search engine"
-```
-
-Documents will be ranked by total score.
-
----
-
-## Phase 4 – Vector Space Model
-
-Represent documents and queries as vectors.
-
-Use **cosine similarity** to compute document relevance.
-
-This prepares the system for more advanced IR experiments.
-
----
-
-## Phase 5 – Future Experiments
-
-Possible extensions:
-
-- Semantic document maps
-- Graph‑based text analysis
-- TextRank summarization
-- Word embeddings
-- Hybrid IR + LLM systems
-
----
-
-# Proposed Package Structure
-
-```
-jsanca.gh.ir
-
-model
-  Document
-  Posting
-  SearchResult
-
-text
-  Tokenizer
-  Normalizer
-  StopWordsFilter
-
-index
-  InvertedIndex
-  Indexer
-
-search
-  SearchEngine
-  RankingService
-
-Main
-```
-
----
-
-# Philosophy
-
-This project embraces a **"build it from scratch" approach**.
-
-The objective is clarity and experimentation rather than performance.
-
-Understanding the internal mechanics of search engines provides a strong
-foundation for modern systems such as:
-
-- Lucene
-- Elasticsearch
-- Vector databases
-- LLM retrieval systems
-
----
-
-# Long‑Term Vision
-
-Once the core IR engine is complete, it can evolve into experiments such as:
-
-- semantic clustering
-- document similarity graphs
-- hybrid lexical + semantic search
-
-In other words, this small project becomes a **playground for Information Retrieval research**.
-
-# myIR – Mini Information Retrieval Engine
-
-This project is a **didactic yet evolving Information Retrieval (IR) engine written in Java**, inspired by systems like Lucene.
-
-Unlike a toy example, this project has grown into a **modular, extensible playground** that explores real-world concerns such as crawling, concurrency, ranking, and lifecycle management.
-
-The goal is not to compete with production systems, but to **understand and rebuild their core ideas from first principles**.
-
----
-
-# Project Goals
-
-1. Rebuild the foundations of classic Information Retrieval.
-2. Implement a functional inverted index with ranking.
-3. Explore real-world crawling and ingestion pipelines.
-4. Experiment with ranking algorithms (TF‑IDF, BM25).
-5. Serve as a foundation for future AI/LLM retrieval experiments.
+1. Rebuild the foundations of classical Information Retrieval.
+2. Implement a functional lexical search engine from scratch.
+3. Explore real-world ingestion and crawling pipelines.
+4. Experiment with sparse vector models and similarity search.
+5. Create a foundation for future hybrid IR + AI retrieval systems.
 
 ---
 
 # Current Capabilities
 
-## Indexing
+## Lexical Retrieval
 
-- In-memory corpus
-- Inverted index with postings
+- In-memory `Corpus`
+- In-memory `InvertedIndex`
 - Term frequency tracking
-- Incremental statistics
+- Lexical search through a `Searcher` abstraction
+- Ranking algorithms:
+  - Binary ranking
+  - TF‑IDF
+  - **BM25**
 
 ## Text Processing
 
-- Tokenization
-- Normalization
-- Stop words filtering
+- `Tokenizer`
+- `Normalizer`
+- document preprocessing pipeline
+- normalized content and derived metadata
 
-## Ranking
+## Vector Retrieval
 
-- Binary ranking (term presence)
-- TF‑IDF
-- **BM25 (recommended for real-world usage)**
+- Sparse document vectors
+- Vocabulary-backed dimensions
+- Cosine similarity for sparse vectors
+- Vector indexing pipeline
+- Preliminary vector search with matched-term explanations
 
-## Crawling (New)
+## Crawling & Ingestion
 
-- Concurrent web crawling using **Virtual Threads (Java 21)**
-- Breadth-First traversal strategy
-- Backpressure using semaphores
-- Pluggable fetchers (Jsoup today, Playwright later)
-- Link extraction and traversal
-- Domain and depth controls
+- Concurrent web crawling using **Virtual Threads**
+- Breadth-first traversal strategy
+- Configurable crawling limits and scope
+- URI canonicalization pipeline
+- Pluggable fetchers and registries
+- Ingestion through `DocumentSource`, `DocumentMapper`, and `Indexer`
 
-## Runtime & Lifecycle (New)
+## Runtime & Lifecycle
 
-- `CrawlerRuntime` for managing shared resources
-- Fetcher reuse via `WebPageFetcherRegistry`
-- Config-based scoping (`configId`)
-- Explicit lifecycle management (`close()`)
+- `CrawlerRuntime` for shared resource ownership
+- explicit lifecycle management with `AutoCloseable`
+- reusable fetcher registries
+- config-based runtime reuse
+
+## Architecture & Design
+
+- explicit pipelines for preprocessing and indexing
+- lexical and vector indexing as separate stages
+- factory-based APIs (`Indexers`, `UriCanonicalizers`, etc.)
+- architecture decisions captured in ADRs
+
+---
+
+# Current Project Status
+
+The project is currently in this state:
+
+- **Lexical indexing:** implemented
+- **TF / TF‑IDF / BM25 ranking:** implemented
+- **Web crawling and ingestion:** implemented
+- **Sparse vector indexing:** implemented
+- **Preliminary vector search:** implemented, still being improved
+- **Hybrid search:** planned
+- **Observability of memory growth:** planned
+- **Disk-backed persistence:** intentionally deferred for now
+
+In short, the lexical IR core is already functional, crawling is real, and vector retrieval is now in the experimental refinement stage.
 
 ---
 
 # Architecture Overview
 
-## Indexing Pipeline
+## Indexing Flow
 
+```text
+Raw Document / Crawled Page
+            ↓
+Document Preprocessing
+  - tokenize
+  - normalize
+  - derive metadata
+            ↓
+PipelineIndexer
+   ├─ LexicalIndexer
+   └─ VectorIndexer
 ```
-Documents / Crawled Pages
-        ↓
-Tokenizer
-        ↓
-Normalizer
-        ↓
-Stop Words Filter
-        ↓
-Inverted Index
-        ↓
+
+## Lexical Search Flow
+
+```text
+Query
+  ↓
+Tokenizer / Normalizer
+  ↓
+InvertedIndex lookup
+  ↓
 Ranker (TF‑IDF / BM25)
+  ↓
+SearchResult
 ```
 
-## Crawling Pipeline
+## Vector Search Flow
 
+```text
+Query
+  ↓
+Tokenizer / Normalizer
+  ↓
+Query weighting
+  ↓
+Sparse query vector
+  ↓
+Similarity against stored document vectors
+  ↓
+SearchResult with matched/contributing terms
 ```
+
+## Crawling Flow
+
+```text
 Seed URLs
-     ↓
-Traversal Strategy (BFS)
-     ↓
-Fetcher (Jsoup / future Playwright)
-     ↓
-Link Extraction
-     ↓
-DocumentSource
-     ↓
-Ingestion → Index
+   ↓
+URI canonicalization
+   ↓
+Traversal strategy (BFS)
+   ↓
+Fetcher
+   ↓
+Extracted page + discovered links
+   ↓
+Document mapping
+   ↓
+Indexing pipeline
 ```
 
 ---
 
-# Key Concepts
+# Why Both Lexical and Vector Indexing?
 
-## Separation of Concerns
+The project intentionally keeps **lexical indexing** and **vector indexing** as separate representations.
 
-- **Fetcher** → retrieves content
-- **Strategy** → controls traversal
-- **Registry** → manages reusable resources
-- **Runtime** → owns lifecycle
+This allows experimentation with:
 
-## Reusability & Performance
+- classical term-based search,
+- cosine similarity over sparse vectors,
+- document-to-document similarity,
+- future hybrid ranking strategies,
+- and better explainability of retrieval behavior.
 
-- Fetchers are reused per configuration (`configId`)
-- Avoids recreating HTTP clients and thread pools
-
-## Concurrency
-
-- Virtual Threads for I/O scalability
-- Semaphore-based backpressure
-
-## Lifecycle Management
-
-- Resources implement `AutoCloseable`
-- Runtime coordinates shutdown
+This reflects a core idea in Information Retrieval: different representations provide different strengths.
 
 ---
 
-# Development Roadmap
+# Roadmap
 
-## Phase 1 – Basic Inverted Index ✔
+## Near-Term Focus
 
-## Phase 2 – Term Frequency ✔
+- improve vector weighting beyond raw TF
+- move vector search toward stronger TF‑IDF-based scoring
+- refine result quality on crawled corpora
+- continue improving query and document explainability
 
-## Phase 3 – TF‑IDF ✔
+## Mid-Term
 
-## Phase 4 – Vector Space Model (in progress)
+- hybrid lexical + vector retrieval
+- document-to-document similarity workflows
+- corpus and memory-growth observability
+- more domain-aware crawling experiments
 
-## Phase 5 – Crawling & Runtime ✔ (current focus)
+## Longer-Term
 
-## Phase 6 – Future Experiments
-
-- Vector representations (embeddings)
-- Hybrid search (lexical + semantic)
-- Graph-based document analysis
-- Integration with LLM pipelines
+- embeddings and denser vector models
+- graph-based document analysis
+- summarization experiments
+- LLM-assisted retrieval pipelines
+- optional disk-backed or more compact storage strategies
 
 ---
 
 # Philosophy
 
-This project embraces a **"build it from scratch" approach**.
+This project embraces a **build-it-from-scratch** philosophy.
 
 The focus is on:
 
-- understanding systems deeply
-- making trade-offs explicit
-- experimenting with architecture
+- understanding systems deeply,
+- making trade-offs explicit,
+- keeping architecture honest,
+- and learning by implementing.
 
-Rather than hiding complexity, the project **surfaces it and manages it explicitly**.
+Rather than hiding complexity, `myIR` tries to surface it in manageable pieces.
+
+That means some parts of the system are intentionally iterative. Better abstractions often emerge only after the simpler version has been built and exercised.
+
+---
+
+# Notes on Scope
+
+The system currently prefers **in-memory implementations** for core structures such as the corpus, inverted index, vector store, and vocabulary.
+
+This is intentional.
+
+At the current scale, simplicity and learning speed matter more than premature persistence complexity. The project already recognizes that memory observability will become important before any future move to disk-backed structures.
 
 ---
 
 # Long-Term Vision
 
-This project aims to evolve into a **research playground for Information Retrieval and AI systems**, bridging:
+The long-term ambition of `myIR` is to become a **research and experimentation platform** sitting at the intersection of:
 
-- classical IR (TF‑IDF, BM25)
-- modern vector search
-- LLM-based retrieval pipelines
+- classical IR,
+- modern vector retrieval,
+- crawling and ingestion,
+- and future AI/LLM retrieval systems.
 
----
+In other words, it is both:
 
-# Notes
-
-The codebase is intentionally iterative. Some components may evolve or be simplified over time as better abstractions emerge.
-
-This is part of the learning process.
+- a way to relearn the foundations,
+- and a way to grow toward more advanced retrieval architecture.
 
 ---
 
 # Author
 
-Built as a learning and experimentation project by a Java architect exploring the intersection of:
+Built as a learning and experimentation project by a Java architect exploring:
 
-- search engines
-- distributed systems
-- and modern AI workflows
+- search engines,
+- concurrency,
+- system design,
+- and modern AI retrieval workflows.
