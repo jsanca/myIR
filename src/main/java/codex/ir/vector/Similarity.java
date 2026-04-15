@@ -9,11 +9,24 @@ package codex.ir.vector;
 public interface Similarity<T> {
 
     /**
-     * Computes similarity between two vectors.
+     * Computes the full similarity result between two vectors.
+     *
+     * @param left left vector
+     * @param right right vector
+     * @return similarity computation result including score and contributing matches
+     */
+    SimilarityResult similarity(T left, T right);
+
+    /**
+     * Computes the similarity score between two vectors.
+     * <p>
+     * This is a convenience method derived from {@link #similarity(Object, Object)}.
      *
      * @param left left vector
      * @param right right vector
      * @return similarity score
      */
-    double score(T left, T right);
+    default double score(final T left, final T right) {
+        return this.similarity(left, right).score();
+    }
 }

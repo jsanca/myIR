@@ -1,5 +1,7 @@
 package codex.ir.ingestion.crawler;
 
+import codex.ir.canonicalizer.UriCanonicalizer;
+import codex.ir.canonicalizer.UriCanonicalizers;
 import codex.ir.concurrent.VTConfig;
 import codex.ir.concurrent.VTExecutor;
 import codex.ir.concurrent.VTExecutors;
@@ -46,6 +48,7 @@ public final class WebPageSourceStrategies {
     ) {
         return siteTraversal(
                 config,
+                UriCanonicalizers.defaultWeb(),
                 VisitedUriRegistries.inMemory(),
                 WebPageFetcherRegistries.simple(config.httpClientConfig()),
                 rootUris
@@ -62,11 +65,13 @@ public final class WebPageSourceStrategies {
      */
     public static WebPageSourceStrategy siteTraversal(
             final WebCrawlingConfig config,
+            final UriCanonicalizer uriCanonicalizer,
             final WebPageFetcherRegistry webPageFetcherRegistry,
             final URI... rootUris
     ) {
         return siteTraversal(
                 config,
+                uriCanonicalizer,
                 VisitedUriRegistries.inMemory(),
                 webPageFetcherRegistry,
                 rootUris
@@ -89,6 +94,7 @@ public final class WebPageSourceStrategies {
     ) {
         return siteTraversal(
                 config,
+                UriCanonicalizers.defaultWeb(),
                 visitedUriRegistry,
                 WebPageFetcherRegistries.simple(config.httpClientConfig()),
                 rootUris
@@ -107,18 +113,20 @@ public final class WebPageSourceStrategies {
      */
     public static WebPageSourceStrategy siteTraversal(
             final WebCrawlingConfig config,
+            final UriCanonicalizer uriCanonicalizer,
             final VisitedUriRegistry visitedUriRegistry,
             final WebPageFetcherRegistry webPageFetcherRegistry,
             final URI... rootUris
     ) {
         Objects.requireNonNull(config, "config must not be null");
+        Objects.requireNonNull(uriCanonicalizer, "uriCanonicalizer must not be null");
         Objects.requireNonNull(visitedUriRegistry, "visitedUriRegistry must not be null");
         Objects.requireNonNull(webPageFetcherRegistry, "webPageFetcherRegistry must not be null");
         Objects.requireNonNull(rootUris, "rootUris must not be null");
 
         final Set<URI> seeds = Arrays.stream(rootUris)
                 .filter(Objects::nonNull)
-                .map(URI::normalize)
+                .map(uriCanonicalizer::canonicalize)
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
 
         if (seeds.isEmpty()) {
@@ -127,6 +135,7 @@ public final class WebPageSourceStrategies {
 
         return new SiteTraversalStrategy(
                 config,
+                uriCanonicalizer,
                 seeds,
                 webPageFetcherRegistry::staticHtml,
                 visitedUriRegistry
@@ -155,6 +164,7 @@ public final class WebPageSourceStrategies {
         private static final long FRONTIER_POLL_TIMEOUT_MILLIS = 250L;
 
         private final WebCrawlingConfig config;
+        private final UriCanonicalizer uriCanonicalizer;
         private final Set<URI> rootUris;
         private final WebPageFetcherFactory fetcherFactory;
         private final VisitedUriRegistry visitedUriRegistry;
@@ -165,11 +175,13 @@ public final class WebPageSourceStrategies {
 
         private SiteTraversalStrategy(
                 final WebCrawlingConfig config,
+                final UriCanonicalizer uriCanonicalizer,
                 final Set<URI> rootUris,
                 final WebPageFetcherFactory fetcherFactory,
                 final VisitedUriRegistry visitedUriRegistry
         ) {
             this.config = Objects.requireNonNull(config, "config must not be null");
+            this.uriCanonicalizer = Objects.requireNonNull(uriCanonicalizer, "uriCanonicalizer must not be null");
             this.rootUris = Objects.requireNonNull(rootUris, "rootUris must not be null");
             this.fetcherFactory = Objects.requireNonNull(fetcherFactory, "fetcherFactory must not be null");
             this.visitedUriRegistry = Objects.requireNonNull(visitedUriRegistry, "visitedUriRegistry must not be null");
@@ -208,7 +220,7 @@ public final class WebPageSourceStrategies {
 
         private void seedFrontier() {
             for (final URI rootUri : this.rootUris) {
-                this.frontier.offer(new TraversalNode(rootUri.normalize(), 0, rootUri.normalize()));
+                this.frontier.offer(new TraversalNode(rootUri, 0, rootUri));
             }
             LOGGER.debug("Seeded traversal frontier with {} root URI(s)", this.rootUris.size());
         }
@@ -227,24 +239,21 @@ public final class WebPageSourceStrategies {
                 return false;
             }
 
-            final URI normalizedUri = UriUtil.normalizeUri(node.uri());
-            if (normalizedUri == null) {
+            final URI canonicalUri = this.uriCanonicalizer.canonicalize(node.uri());
+
+            if (!HttpUtil.isHttpUri(canonicalUri)) {
                 return false;
             }
 
-            if (!HttpUtil.isHttpUri(normalizedUri)) {
+            if (!UriUtil.isAllowedByDomainRules(canonicalUri, node.rootUri(), this.config)) {
                 return false;
             }
 
-            if (!UriUtil.isAllowedByDomainRules(normalizedUri, node.rootUri(), this.config)) {
+            if (isDisallowedPath(canonicalUri)) {
                 return false;
             }
 
-            if (isDisallowedPath(normalizedUri)) {
-                return false;
-            }
-
-            return this.visitedUriRegistry.markVisited(normalizedUri);
+            return this.visitedUriRegistry.markVisited(canonicalUri);
         }
 
         private void processNode(final TraversalNode node, final Consumer<WebPage> consumer) {
@@ -257,7 +266,8 @@ public final class WebPageSourceStrategies {
 
                 final Consumer<Set<URI>> linkSubscriber = links -> enqueueDiscoveredLinks(node, links);
                 fetcher = this.fetcherFactory.create();
-                fetcher.fetch(node.uri(), linkSubscriber).ifPresent(page -> emitPage(page, consumer));
+                final URI canonicalUri = this.uriCanonicalizer.canonicalize(node.uri());
+                fetcher.fetch(canonicalUri, linkSubscriber).ifPresent(page -> emitPage(page, consumer));
             } catch (final InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 LOGGER.warn("Traversal task interrupted for URI {}", node.uri(), exception);
@@ -292,14 +302,19 @@ public final class WebPageSourceStrategies {
             }
 
             for (final URI discoveredLink : discoveredLinks) {
-                final URI normalizedDiscoveredLink = UriUtil.normalizeUri(discoveredLink);
-                if (normalizedDiscoveredLink == null || !HttpUtil.isHttpUri(normalizedDiscoveredLink) ||
-                        !UriUtil.isAllowedByDomainRules(normalizedDiscoveredLink, parentNode.rootUri(), this.config) || isDisallowedPath(normalizedDiscoveredLink) ||
-                        this.visitedUriRegistry.isVisited(normalizedDiscoveredLink)) {
+                if (discoveredLink == null) {
                     continue;
                 }
 
-                this.frontier.offer(new TraversalNode(normalizedDiscoveredLink, nextDepth, parentNode.rootUri()));
+                final URI canonicalDiscoveredLink = this.uriCanonicalizer.canonicalize(discoveredLink);
+                if (!HttpUtil.isHttpUri(canonicalDiscoveredLink)
+                        || !UriUtil.isAllowedByDomainRules(canonicalDiscoveredLink, parentNode.rootUri(), this.config)
+                        || isDisallowedPath(canonicalDiscoveredLink)
+                        || this.visitedUriRegistry.isVisited(canonicalDiscoveredLink)) {
+                    continue;
+                }
+
+                this.frontier.offer(new TraversalNode(canonicalDiscoveredLink, nextDepth, parentNode.rootUri()));
             }
         }
 

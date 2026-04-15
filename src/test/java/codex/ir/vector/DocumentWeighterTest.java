@@ -5,6 +5,8 @@ import codex.ir.Document.DocumentMetadata;
 import codex.ir.corpus.Corpora;
 import codex.ir.corpus.Corpus;
 import codex.ir.tokenizer.Tokenizer;
+import codex.ir.weight.DocumentWeighter;
+import codex.ir.weight.Weighters;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;

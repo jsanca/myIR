@@ -1,4 +1,4 @@
-package codex.ir.vector;
+package codex.ir.weight;
 
 import codex.ir.Document;
 import codex.ir.corpus.Corpus;

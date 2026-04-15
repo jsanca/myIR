@@ -1,5 +1,6 @@
 package codex.ir.ingestion.crawler;
 
+import codex.ir.canonicalizer.UriCanonicalizer;
 import codex.ir.ingestion.DocumentSource;
 import codex.ir.ingestion.Sources;
 import codex.ir.ingestion.WebCrawlingConfig;
@@ -26,13 +27,13 @@ public final class WebCrawlerRuntime implements CrawlerRuntime {
     }
 
     @Override
-    public WebPageSourceStrategy siteTraversal(final WebCrawlingConfig config, final URI... rootUris) {
-        return WebPageSourceStrategies.siteTraversal(config, fetcherRegistry(config), rootUris);
+    public WebPageSourceStrategy siteTraversal(final WebCrawlingConfig config, final UriCanonicalizer uriCanonicalizer, final URI... rootUris) {
+        return WebPageSourceStrategies.siteTraversal(config, uriCanonicalizer, fetcherRegistry(config), rootUris);
     }
 
     @Override
-    public DocumentSource<WebPage> webPageSource(final WebCrawlingConfig config, final URI... rootUris) {
-        return Sources.webPage(siteTraversal(config, rootUris));
+    public DocumentSource<WebPage> webPageSource(final WebCrawlingConfig config, final UriCanonicalizer uriCanonicalizer, final URI... rootUris) {
+        return Sources.webPage(siteTraversal(config, uriCanonicalizer, rootUris));
     }
 
     @Override

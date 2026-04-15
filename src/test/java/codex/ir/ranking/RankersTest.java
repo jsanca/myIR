@@ -1,7 +1,6 @@
 package codex.ir.ranking;
 
 import codex.ir.Document;
-import codex.ir.indexer.DocumentIndexer;
 import codex.ir.indexer.Indexer;
 import codex.ir.normalizer.Normalizer;
 import codex.ir.normalizer.Normalizers;

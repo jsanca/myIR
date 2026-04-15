@@ -1,12 +1,13 @@
 package codex;
 
 import codex.ir.*;
+import codex.ir.canonicalizer.UriCanonicalizer;
+import codex.ir.canonicalizer.UriCanonicalizers;
 import codex.ir.corpus.Corpora;
 import codex.ir.corpus.Corpus;
-import codex.ir.indexer.DocumentIndexer;
-import codex.ir.indexer.Indexer;
-import codex.ir.indexer.InvertedIndex;
-import codex.ir.indexer.InvertedIndexes;
+import codex.ir.corpus.vector.Vocabularies;
+import codex.ir.corpus.vector.Vocabulary;
+import codex.ir.indexer.*;
 import codex.ir.ingestion.*;
 import codex.ir.ingestion.crawler.CrawlerRuntime;
 import codex.ir.ingestion.crawler.WebCrawlerRuntime;
@@ -18,8 +19,17 @@ import codex.ir.ranking.Rankers;
 import codex.ir.search.SearchResult;
 import codex.ir.search.Searcher;
 import codex.ir.search.SimpleSearcher;
+import codex.ir.search.VectorSearcher;
 import codex.ir.tokenizer.Tokenizer;
 import codex.ir.tokenizer.Tokenizers;
+import codex.ir.vector.Similarities;
+import codex.ir.vector.Similarity;
+import codex.ir.vector.SparseDocumentVector;
+import codex.ir.vector.SparseVectorizer;
+import codex.ir.vector.store.DocumentVectorStore;
+import codex.ir.vector.store.VectorStores;
+import codex.ir.weight.DocumentWeighter;
+import codex.ir.weight.Weighters;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -33,6 +43,7 @@ public class Main {
     public static void main(String[] args) {
         //runInMemoryDemo();
          runWebCrawlingDemo();
+        runWebCrawlingDemoWithVectoring();
     }
 
     private static void runInMemoryDemo() {
@@ -41,7 +52,7 @@ public class Main {
         final Normalizer normalizer = Normalizers.english();
         final Corpus corpus = Corpora.inMemory();
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
-        final Indexer indexer = new DocumentIndexer(corpus, invertedIndex, tokenizer, normalizer);
+        final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
         final Ranker ranker = Rankers.tfIdf(corpus, invertedIndex);
 
         final String text1 = "Java is a programming language";
@@ -87,23 +98,32 @@ public class Main {
         final Normalizer normalizer = Normalizers.english();
         final Corpus corpus = Corpora.inMemory();
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
-        final Indexer indexer = new DocumentIndexer(corpus, invertedIndex, tokenizer, normalizer);
+        final DocumentWeighter documentWeighter = Weighters.termFrequency(tokenizer);
+        final Vocabulary vocabulary = Vocabularies.getVocabulary();
+        final SparseVectorizer sparseVectorizer = new SparseVectorizer(vocabulary);
+        final DocumentVectorStore documentVectorStore = VectorStores.inMemory();
+        final Indexer indexer = Indexers.lexicalAndVector(invertedIndex, tokenizer, normalizer, documentWeighter, sparseVectorizer, documentVectorStore, corpus);
         final Ranker ranker = Rankers.bm25(corpus, invertedIndex);
+        final UriCanonicalizer uriCanonicalizer = dotCmsCanonicalizer();
 
         final WebCrawlingConfig config = WebCrawlingConfig.builder()
-                .maxDepth(1)
-                .maxPages(10)
+                .maxDepth(2)
+                .maxPages(100)
                 .sameDomainOnly(true)
                 .followExternalLinks(false)
                 .build();
 
-        final URI rootUri = URI.create("https://web-scraping.dev/");
+        //final String [] searchTerms = { "scraping", "java", "search" };
+        //final URI rootUri = URI.create("https://web-scraping.dev/");
+        //final URI rootUri = URI.create("https://www.gutenberg.org/");
+        final String [] searchTerms = { "snowboarding", "fishing", "java" };
+        final URI rootUri = URI.create("https://demo.dotcms.com/");
         final Set<Object> managedInstances = new LinkedHashSet<>();
         final CrawlerRuntime crawlerRuntime = WebCrawlerRuntime.getInstance();
 
         try {
 
-            final DocumentSource<WebPage> documentSource = crawlerRuntime.webPageSource(config, rootUri);
+            final DocumentSource<WebPage> documentSource = crawlerRuntime.webPageSource(config, uriCanonicalizer, rootUri);
             final DocumentMapper<WebPage> documentMapper = Mappers.webPage();
             final DocumentIngestionService<WebPage> ingestionService = Ingestors.simple();
 
@@ -119,15 +139,140 @@ public class Main {
             managedInstances.add(crawlerRuntime);
 
             System.out.println("How many docs are in my crawled corpus: " + corpus.size());
-            printResults("scraping", searcher.searchDetailed("scraping"));
-            printResults("html", searcher.searchDetailed("html"));
-            printResults("data", searcher.searchDetailed("data"));
+            for (final String searchTerm : searchTerms) {
+
+                printResults(searchTerm, searcher.searchDetailed(searchTerm));
+
+            }
         } catch (final Exception exception ) {
 
             exception.printStackTrace(System.err);
         } finally {
 
             closeManagedInstances(managedInstances);
+        }
+    }
+
+    private static void runWebCrawlingDemoWithVectoring() {
+
+        final Tokenizer tokenizer = Tokenizers.whitespace();
+        final Normalizer normalizer = Normalizers.english();
+        final Corpus corpus = Corpora.inMemory();
+        final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
+        final DocumentWeighter documentWeighter = Weighters.termFrequency(tokenizer);
+        final Vocabulary vocabulary = Vocabularies.getVocabulary();
+        final SparseVectorizer sparseVectorizer = new SparseVectorizer(vocabulary);
+        final DocumentVectorStore documentVectorStore = VectorStores.inMemory();
+        final Indexer indexer = Indexers.lexicalAndVector(invertedIndex, tokenizer, normalizer, documentWeighter, sparseVectorizer, documentVectorStore, corpus);
+        final UriCanonicalizer uriCanonicalizer = dotCmsCanonicalizer();
+
+        final WebCrawlingConfig config = WebCrawlingConfig.builder()
+                .maxDepth(2)
+                .maxPages(100)
+                .sameDomainOnly(true)
+                .followExternalLinks(false)
+                .build();
+
+        //final String [] searchTerms = { "scraping", "java", "search" };
+        //final URI rootUri = URI.create("https://web-scraping.dev/");
+        //final URI rootUri = URI.create("https://www.gutenberg.org/");
+        final String [] searchTerms = { "snowboarding", "fishing", "java" };
+        final URI rootUri = URI.create("https://demo.dotcms.com/");
+        final Set<Object> managedInstances = new LinkedHashSet<>();
+        final CrawlerRuntime crawlerRuntime = WebCrawlerRuntime.getInstance();
+
+        try {
+
+            final DocumentSource<WebPage> documentSource = crawlerRuntime.webPageSource(config, uriCanonicalizer, rootUri);
+            final DocumentMapper<WebPage> documentMapper = Mappers.webPage();
+            final DocumentIngestionService<WebPage> ingestionService = Ingestors.simple();
+
+            managedInstances.add(corpus);
+            managedInstances.add(invertedIndex);
+            managedInstances.add(indexer);
+            managedInstances.add(documentSource);
+
+            ingestionService.ingest(documentSource, documentMapper, indexer);
+            final double threshold = 0.1;
+
+            final Searcher searcher = new VectorSearcher(corpus, vocabulary, new SparseVectorizer(vocabulary),
+                    documentWeighter, documentVectorStore, tokenizer, normalizer, Similarities.sparseCosine(),
+                    threshold
+            );
+
+            managedInstances.add(searcher);
+            managedInstances.add(crawlerRuntime);
+
+            System.out.println("How many docs are in my crawled corpus: " + corpus.size());
+            for (final String searchTerm : searchTerms) {
+
+                printResults(searchTerm, searcher.searchDetailed(searchTerm));
+            }
+        } catch (final Exception exception ) {
+
+            exception.printStackTrace(System.err);
+        } finally {
+
+            closeManagedInstances(managedInstances);
+        }
+    }
+
+    private static UriCanonicalizer dotCmsCanonicalizer() {
+        return UriCanonicalizers.defaultWeb(
+                Main::removeDotCmsPersonaIdQueryParameter,
+                Main::removeTrailingIndexSegment
+        );
+    }
+
+    private static URI removeDotCmsPersonaIdQueryParameter(final URI uri) {
+        final String rawQuery = uri.getRawQuery();
+        if (rawQuery == null || rawQuery.isBlank()) {
+            return uri;
+        }
+
+        final String filteredQuery = java.util.Arrays.stream(rawQuery.split("&"))
+                .filter(parameter -> !parameter.isBlank())
+                .filter(parameter -> !parameter.startsWith("com.dotmarketing.persona.id="))
+                .collect(java.util.stream.Collectors.joining("&"));
+
+        try {
+            return new URI(
+                    uri.getScheme(),
+                    uri.getUserInfo(),
+                    uri.getHost(),
+                    uri.getPort(),
+                    uri.getPath(),
+                    filteredQuery.isBlank() ? null : filteredQuery,
+                    uri.getFragment()
+            );
+        } catch (final Exception exception) {
+            throw new IllegalArgumentException("Could not remove dotCMS persona query parameter from URI: " + uri,
+                    exception);
+        }
+    }
+
+    private static URI removeTrailingIndexSegment(final URI uri) {
+        final String path = uri.getPath();
+        if (path == null || path.isBlank() || !path.endsWith("/index")) {
+            return uri;
+        }
+
+        final String normalizedPath = path.substring(0, path.length() - "/index".length());
+        final String finalPath = normalizedPath.isBlank() ? "/" : normalizedPath;
+
+        try {
+            return new URI(
+                    uri.getScheme(),
+                    uri.getUserInfo(),
+                    uri.getHost(),
+                    uri.getPort(),
+                    finalPath,
+                    uri.getQuery(),
+                    uri.getFragment()
+            );
+        } catch (final Exception exception) {
+            throw new IllegalArgumentException("Could not remove trailing /index from URI: " + uri,
+                    exception);
         }
     }
 
