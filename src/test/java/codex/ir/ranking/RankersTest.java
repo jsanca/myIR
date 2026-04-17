@@ -1,14 +1,11 @@
 package codex.ir.ranking;
 
 import codex.ir.Document;
-import codex.ir.indexer.Indexer;
+import codex.ir.indexer.*;
 import codex.ir.normalizer.Normalizer;
 import codex.ir.normalizer.Normalizers;
 import codex.ir.corpus.Corpora;
 import codex.ir.corpus.Corpus;
-import codex.ir.indexer.InvertedIndex;
-import codex.ir.indexer.InvertedIndexes;
-import codex.ir.indexer.Posting;
 import codex.ir.tokenizer.Tokenizer;
 import codex.ir.tokenizer.Tokenizers;
 import org.junit.jupiter.api.Test;
@@ -62,9 +59,9 @@ class RankersTest {
     void tfIdfRankerShouldReturnTfMultipliedByIdf() {
         final Tokenizer tokenizer = Tokenizers.whitespace();
         final Normalizer normalizer = Normalizers.english();
-        final Corpus corpus = Corpora.inMemory();
+        final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
-        final Indexer indexer = new DocumentIndexer(corpus, invertedIndex, tokenizer, normalizer);
+        final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
         final Ranker ranker = Rankers.tfIdf(corpus, invertedIndex);
 
         final String text1 = "Java is a programming language";
@@ -111,9 +108,9 @@ class RankersTest {
     void bm25RankerShouldReturnPositiveScoreForMatchingTerm() {
         final Tokenizer tokenizer = Tokenizers.whitespace();
         final Normalizer normalizer = Normalizers.english();
-        final Corpus corpus = Corpora.inMemory();
+        final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
-        final Indexer indexer = new DocumentIndexer(corpus, invertedIndex, tokenizer, normalizer);
+        final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
         final Ranker ranker = Rankers.bm25(corpus, invertedIndex);
 
         final String text1 = "Java is a programming language";
@@ -170,9 +167,9 @@ class RankersTest {
     void bm25RankerShouldPenalizeLongerDocumentWhenTermFrequencyMatches() {
         final Tokenizer tokenizer = Tokenizers.whitespace();
         final Normalizer normalizer = Normalizers.english();
-        final Corpus corpus = Corpora.inMemory();
+        final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
-        final Indexer indexer = new DocumentIndexer(corpus, invertedIndex, tokenizer, normalizer);
+        final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
         final Ranker ranker = Rankers.bm25(corpus, invertedIndex);
 
         final String shortText = "java code";
@@ -208,7 +205,15 @@ class RankersTest {
         final double shortScore = ranker.score("java", shortPosting);
         final double longScore = ranker.score("java", longPosting);
 
-        assertTrue(shortScore > longScore);
+        System.out.println("BM25 shortScore=" + shortScore + ", longScore=" + longScore);
+
+        assertTrue(shortScore > 0.0,
+                "Expected short document BM25 score to be positive, but was " + shortScore);
+        assertTrue(longScore > 0.0,
+                "Expected long document BM25 score to be positive, but was " + longScore);
+        assertTrue(shortScore > longScore,
+                "Expected shorter document to score higher when term frequency matches, but shortScore="
+                        + shortScore + ", longScore=" + longScore);
     }
 
     @Test

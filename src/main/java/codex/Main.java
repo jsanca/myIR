@@ -159,7 +159,7 @@ public class Main {
         final Normalizer normalizer = Normalizers.english();
         final Corpus corpus = Corpora.inMemory();
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
-        final DocumentWeighter documentWeighter = Weighters.termFrequency(tokenizer);
+        final DocumentWeighter documentWeighter = Weighters.tfIdf(tokenizer, invertedIndex);
         final Vocabulary vocabulary = Vocabularies.getVocabulary();
         final SparseVectorizer sparseVectorizer = new SparseVectorizer(vocabulary);
         final DocumentVectorStore documentVectorStore = VectorStores.inMemory();

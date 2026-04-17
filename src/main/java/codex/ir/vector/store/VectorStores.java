@@ -10,9 +10,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-public final class VectorStores {
 
-    private VectorStores() {}
+/**
+ * {@link DocumentVectorStore} factory
+ * Returns inMemory stores of the type specified.
+ *
+ * @author jsanca
+ * @author jsanca & elo
+ */
+public final class VectorStores {
 
     public static DocumentVectorStore inMemory() {
         return new InMemoryDocumentVectorStore();

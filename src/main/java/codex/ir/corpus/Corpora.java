@@ -7,8 +7,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Utility factory class for creating Corpus implementations.
@@ -24,19 +24,19 @@ public final class Corpora {
 
     private Corpora() {}
 
-    /**
-     * Creates a new in-memory implementation of a Corpus.
-     *
-     * The returned corpus stores documents in a simple
-     * in-memory HashMap using the document id as the key.
-     * This implementation is suitable for experiments,
-     * testing, and small datasets.
-     *
-     * @return a new in-memory Corpus instance
-     */
+    public enum CorpusStatisticsRefreshMode {
+        DEBOUNCED,
+        EAGER
+    }
+
     public static Corpus inMemory() {
 
-        return new InMemoryCorpus();
+        return inMemory(CorpusStatisticsRefreshMode.DEBOUNCED);
+    }
+
+    public static Corpus inMemory(final CorpusStatisticsRefreshMode refreshMode) {
+
+        return new InMemoryCorpus(refreshMode, 250L);
     }
 
     /**
@@ -54,7 +54,8 @@ public final class Corpora {
     static class InMemoryCorpus implements Corpus {
 
         private static final String STATISTICS_REFRESH_KEY = "corpus-statistics-refresh";
-        private static final long STATISTICS_REFRESH_DEBOUNCE_MILLIS = 250L;
+        private final CorpusStatisticsRefreshMode refreshMode;
+        private final long statisticsRefreshDebounceMillis;
         private final Map<String, Document> documentMap = new ConcurrentHashMap<>();
         private final Debouncer debouncer = new Debouncer();
         private final AtomicReference<Long> statisticsSnapshotVersion = new AtomicReference<>(0L);
@@ -64,6 +65,12 @@ public final class Corpora {
         private final AtomicReference<Long> totalDocumentLength = new AtomicReference<>(0L);
         private final AtomicReference<Integer> documentsWithLength = new AtomicReference<>(0);
         private final Object statisticsMutationLock = new Object();
+
+        private InMemoryCorpus(final CorpusStatisticsRefreshMode refreshMode,
+                               final long statisticsRefreshDebounceMillis) {
+            this.refreshMode = Objects.requireNonNull(refreshMode);
+            this.statisticsRefreshDebounceMillis = statisticsRefreshDebounceMillis;
+        }
 
         /**
          * Adds a document to the corpus.
@@ -79,7 +86,7 @@ public final class Corpora {
             synchronized (statisticsMutationLock) {
                 final Document previousDocument = documentMap.put(document.id(), document);
                 adjustStatisticsForReplacement(previousDocument, document);
-                scheduleStatisticsSnapshotRefresh();
+                refreshStatisticsSnapshot();
             }
         }
 
@@ -176,18 +183,30 @@ public final class Corpora {
             return document.metadata().length();
         }
 
+        private void refreshStatisticsSnapshot() {
+            if (this.refreshMode == CorpusStatisticsRefreshMode.EAGER) {
+                updateStatisticsSnapshot();
+                return;
+            }
+            scheduleStatisticsSnapshotRefresh();
+        }
+
         private void scheduleStatisticsSnapshotRefresh() {
             this.debouncer.debounce(
                     STATISTICS_REFRESH_KEY,
                     () -> {
                         synchronized (statisticsMutationLock) {
-                            final long nextVersion = this.statisticsSnapshotVersion.updateAndGet(current -> current + 1L);
-                            this.statisticsCache.set(buildCurrentStatisticsSnapshot(nextVersion));
+                            updateStatisticsSnapshot();
                         }
                     },
-                    STATISTICS_REFRESH_DEBOUNCE_MILLIS,
+                    this.statisticsRefreshDebounceMillis,
                     TimeUnit.MILLISECONDS
             );
+        }
+
+        private void updateStatisticsSnapshot() {
+            final long nextVersion = this.statisticsSnapshotVersion.updateAndGet(current -> current + 1L);
+            this.statisticsCache.set(buildCurrentStatisticsSnapshot(nextVersion));
         }
 
         private CorpusStatistics buildCurrentStatisticsSnapshot(final long version) {

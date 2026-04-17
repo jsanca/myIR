@@ -11,13 +11,11 @@ import java.util.Objects;
  * @author jsanca & elo
  */
 public record SparseDocumentVector(
-        String documentId,
         Map<Integer, Double> weights,
         SparseVectorMetadata metadata
 ) {
 
     public SparseDocumentVector {
-        Objects.requireNonNull(documentId, "documentId must not be null");
         Objects.requireNonNull(weights, "weights must not be null");
         Objects.requireNonNull(metadata, "metadata must not be null");
 
