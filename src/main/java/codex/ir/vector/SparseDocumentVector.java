@@ -11,6 +11,7 @@ import java.util.Objects;
  * @author jsanca & elo
  */
 public record SparseDocumentVector(
+        String documentId,
         Map<Integer, Double> weights,
         SparseVectorMetadata metadata
 ) {

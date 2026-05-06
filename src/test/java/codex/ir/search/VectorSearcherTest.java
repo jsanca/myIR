@@ -11,14 +11,13 @@ import codex.ir.indexer.Indexer;
 import codex.ir.indexer.Indexers;
 import codex.ir.normalizer.Normalizer;
 import codex.ir.normalizer.Normalizers;
-import codex.ir.vector.Similarities;
 import codex.ir.tokenizer.Tokenizer;
 import codex.ir.tokenizer.Tokenizers;
-import codex.ir.vector.store.DocumentVectorStore;
-import codex.ir.vector.store.DocumentVectorStores;
+import codex.ir.vector.Similarities;
 import codex.ir.vector.SparseDocumentVector;
 import codex.ir.vector.Vectorizer;
 import codex.ir.vector.Vectorizers;
+import codex.ir.vector.store.DocumentVectorStore;
 import codex.ir.vector.store.VectorStores;
 import codex.ir.weight.DocumentWeighter;
 import codex.ir.weight.Weighters;
@@ -60,12 +59,14 @@ class VectorSearcherTest {
                 normalizer,
                 documentWeighter,
                 vectorizer,
-                Similarities.cosine(),
+                Similarities.sparseCosine(),
                 corpus,
-                documentVectorStore
+                documentVectorStore,
+                vocabulary,
+                0.1d
         );
 
-        final List<SearchResult> results = searcher.search("lucene");
+        final List<SearchResult> results = searcher.searchDetailed("lucene");
 
         assertFalse(results.isEmpty(), "Expected vector search to return at least one result");
         assertEquals("doc3", results.getFirst().document().id(),
@@ -76,12 +77,13 @@ class VectorSearcherTest {
     void searchShouldRankProgrammingDocumentFirstForProgrammingQuery() {
         final Tokenizer tokenizer = Tokenizers.whitespace();
         final Normalizer normalizer = Normalizers.english();
+        final Vocabulary vocabulary = Vocabularies.getVocabulary();
         final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
         final DocumentWeighter documentWeighter = Weighters.tfIdf(tokenizer, invertedIndex);
-        final Vectorizer<SparseDocumentVector> vectorizer = Vectorizers.sparse();
-        final DocumentVectorStore<SparseDocumentVector> documentVectorStore = DocumentVectorStores.inMemory();
+        final Vectorizer<SparseDocumentVector> vectorizer = Vectorizers.sparse(vocabulary);
+        final DocumentVectorStore documentVectorStore = VectorStores.inMemory();
 
         final Document doc1 = document("doc1", "java search engine");
         final Document doc2 = document("doc2", "java programming language");
@@ -100,12 +102,14 @@ class VectorSearcherTest {
                 normalizer,
                 documentWeighter,
                 vectorizer,
-                Similarities.cosine(),
+                Similarities.sparseCosine(),
                 corpus,
-                documentVectorStore
+                documentVectorStore,
+                vocabulary,
+                0.1d
         );
 
-        final List<SearchResult> results = searcher.search("programming");
+        final List<SearchResult> results = searcher.searchDetailed("programming");
 
         assertFalse(results.isEmpty(), "Expected vector search to return at least one result");
         assertEquals("doc2", results.getFirst().document().id(),
@@ -115,10 +119,12 @@ class VectorSearcherTest {
     private static void storeVector(final Corpus corpus,
                                     final DocumentWeighter documentWeighter,
                                     final Vectorizer<SparseDocumentVector> vectorizer,
-                                    final DocumentVectorStore<SparseDocumentVector> documentVectorStore,
+                                    final DocumentVectorStore documentVectorStore,
                                     final Document document) {
-        final SparseDocumentVector vector = vectorizer.vectorize(documentWeighter.weigh(corpus, document));
-        documentVectorStore.store(document.id(), vector);
+        final SparseDocumentVector vector = vectorizer.vectorize(
+                document.id(),
+                documentWeighter.weigh(corpus, document));
+        documentVectorStore.save(vector);
     }
 
     private static Document document(final String id, final String text) {

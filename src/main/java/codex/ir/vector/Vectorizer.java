@@ -14,8 +14,9 @@ public interface Vectorizer<T> {
     /**
      * Builds a vector from term weights.
      *
+     * @param documentId the identifier of the document being vectorized
      * @param termWeights map of normalized terms to their weights
      * @return vector representation built from the provided weights
      */
-    T vectorize(Map<String, Double> termWeights);
+    T vectorize(String documentId, Map<String, Double> termWeights);
 }

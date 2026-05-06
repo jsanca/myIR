@@ -19,7 +19,7 @@ public class VectorSearcher implements Searcher {
     private static final Logger LOGGER = LoggerFactory.getLogger(VectorSearcher.class);
     private final Corpus corpus;
     private final Vocabulary vocabulary;
-    private final SparseVectorizer sparseVectorizer;
+    private final Vectorizer<SparseDocumentVector> sparseVectorizer;
     private final DocumentWeighter documentWeighter;
     private final DocumentVectorStore vectorStore;
     private final Tokenizer tokenizer;
@@ -29,7 +29,7 @@ public class VectorSearcher implements Searcher {
 
     public VectorSearcher(final Corpus corpus,
                           final Vocabulary vocabulary,
-                          final SparseVectorizer sparseVectorizer,
+                          final Vectorizer<SparseDocumentVector> sparseVectorizer,
                           final DocumentWeighter documentWeighter,
                           final DocumentVectorStore vectorStore,
                           final Tokenizer tokenizer,

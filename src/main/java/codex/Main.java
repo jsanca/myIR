@@ -22,10 +22,7 @@ import codex.ir.search.SimpleSearcher;
 import codex.ir.search.VectorSearcher;
 import codex.ir.tokenizer.Tokenizer;
 import codex.ir.tokenizer.Tokenizers;
-import codex.ir.vector.Similarities;
-import codex.ir.vector.Similarity;
-import codex.ir.vector.SparseDocumentVector;
-import codex.ir.vector.SparseVectorizer;
+import codex.ir.vector.*;
 import codex.ir.vector.store.DocumentVectorStore;
 import codex.ir.vector.store.VectorStores;
 import codex.ir.weight.DocumentWeighter;
@@ -100,7 +97,7 @@ public class Main {
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final DocumentWeighter documentWeighter = Weighters.termFrequency(tokenizer);
         final Vocabulary vocabulary = Vocabularies.getVocabulary();
-        final SparseVectorizer sparseVectorizer = new SparseVectorizer(vocabulary);
+        final Vectorizer<SparseDocumentVector>  sparseVectorizer = Vectorizers.sparse(vocabulary);
         final DocumentVectorStore documentVectorStore = VectorStores.inMemory();
         final Indexer indexer = Indexers.lexicalAndVector(invertedIndex, tokenizer, normalizer, documentWeighter, sparseVectorizer, documentVectorStore, corpus);
         final Ranker ranker = Rankers.bm25(corpus, invertedIndex);
@@ -161,7 +158,7 @@ public class Main {
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final DocumentWeighter documentWeighter = Weighters.tfIdf(tokenizer, invertedIndex);
         final Vocabulary vocabulary = Vocabularies.getVocabulary();
-        final SparseVectorizer sparseVectorizer = new SparseVectorizer(vocabulary);
+        final Vectorizer<SparseDocumentVector> sparseVectorizer = Vectorizers.sparse(vocabulary);
         final DocumentVectorStore documentVectorStore = VectorStores.inMemory();
         final Indexer indexer = Indexers.lexicalAndVector(invertedIndex, tokenizer, normalizer, documentWeighter, sparseVectorizer, documentVectorStore, corpus);
         final UriCanonicalizer uriCanonicalizer = dotCmsCanonicalizer();
@@ -195,7 +192,7 @@ public class Main {
             ingestionService.ingest(documentSource, documentMapper, indexer);
             final double threshold = 0.1;
 
-            final Searcher searcher = new VectorSearcher(corpus, vocabulary, new SparseVectorizer(vocabulary),
+            final Searcher searcher = new VectorSearcher(corpus, vocabulary, Vectorizers.sparse(vocabulary),
                     documentWeighter, documentVectorStore, tokenizer, normalizer, Similarities.sparseCosine(),
                     threshold
             );

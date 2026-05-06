@@ -17,11 +17,11 @@ class SparseCosineSimilarityTest {
         final Vectorizer<SparseDocumentVector> vectorizer = Vectorizers.sparse(vocabulary);
         final Similarity<SparseDocumentVector> similarity = Similarities.sparseCosine();
 
-        final SparseDocumentVector a = vectorizer.vectorize(
+        final SparseDocumentVector a = vectorizer.vectorize("doc-a",
                 Map.of("java", 2.0d, "ir", 1.0d)
         );
 
-        final SparseDocumentVector b = vectorizer.vectorize(
+        final SparseDocumentVector b = vectorizer.vectorize("doc-b",
                 Map.of("java", 1.0d, "search", 5.0d)
         );
 

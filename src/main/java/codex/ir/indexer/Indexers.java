@@ -5,7 +5,7 @@ import codex.ir.corpus.Corpus;
 import codex.ir.normalizer.Normalizer;
 import codex.ir.tokenizer.Tokenizer;
 import codex.ir.vector.SparseDocumentVector;
-import codex.ir.vector.SparseVectorizer;
+import codex.ir.vector.Vectorizer;
 import codex.ir.vector.store.DocumentVectorStore;
 import codex.ir.weight.DocumentWeighter;
 import org.slf4j.Logger;
@@ -60,7 +60,7 @@ public final class Indexers {
      * @return an indexer that preprocesses and vector-indexes documents
      */
     public static Indexer vector(final DocumentWeighter documentWeighter,
-                                 final SparseVectorizer sparseVectorizer,
+                                 final Vectorizer<SparseDocumentVector> sparseVectorizer,
                                  final DocumentVectorStore documentVectorStore,
                                  final Corpus corpus,
                                  final Tokenizer tokenizer,
@@ -87,7 +87,7 @@ public final class Indexers {
                                            final Tokenizer tokenizer,
                                            final Normalizer normalizer,
                                            final DocumentWeighter documentWeighter,
-                                           final SparseVectorizer sparseVectorizer,
+                                           final Vectorizer<SparseDocumentVector>sparseVectorizer,
                                            final DocumentVectorStore documentVectorStore,
                                            final Corpus corpus) {
 
@@ -226,7 +226,7 @@ public final class Indexers {
                 return document;
             }
 
-            final String content = document.rawContent();
+            final String content = resolveContent(document);
             if (content == null || content.isBlank()) {
                 LOGGER.debug("Document id={} has no content. Returning empty preprocessed document.",
                         document.id());
@@ -283,6 +283,25 @@ public final class Indexers {
 
             return document.metadata().length() != null
                     && document.metadata().uniqueTerms() != null;
+        }
+
+        private String resolveContent(final Document document) {
+            final Map<String, String> fields = document.fields();
+            if (fields == null || fields.isEmpty()) {
+                return document.rawContent();
+            }
+
+            final String aggregated = fields.values().stream()
+                    .filter(v -> v != null && !v.isBlank())
+                    .collect(java.util.stream.Collectors.joining(" "));
+
+            if (aggregated.isBlank()) {
+                LOGGER.debug("Document id={} has fields but all values are blank. Falling back to rawContent.",
+                        document.id());
+                return document.rawContent();
+            }
+
+            return aggregated;
         }
     } // DocumentPreprocessor
 
@@ -370,12 +389,12 @@ public final class Indexers {
         private static final Logger LOGGER = LoggerFactory.getLogger(VectorIndexer.class);
 
         private final DocumentWeighter documentWeighter;
-        private final SparseVectorizer sparseVectorizer;
+        private final Vectorizer<SparseDocumentVector> sparseVectorizer;
         private final DocumentVectorStore documentVectorStore;
         private final Corpus corpus;
 
         private VectorIndexer(final DocumentWeighter documentWeighter,
-                              final SparseVectorizer sparseVectorizer,
+                              final Vectorizer<SparseDocumentVector> sparseVectorizer,
                               final DocumentVectorStore documentVectorStore,
                               final Corpus corpus) {
 

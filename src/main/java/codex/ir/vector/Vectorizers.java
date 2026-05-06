@@ -34,6 +34,7 @@ public final class Vectorizers {
          */
         @Override
         public SparseDocumentVector vectorize(
+                final String documentId,
                 final Map<String, Double> termWeights
         ) {
             Objects.requireNonNull(termWeights, "termWeights must not be null");
