@@ -201,6 +201,30 @@ public final class Indexers {
      * <p>
      * The preprocessed document contains normalized content and derived lexical
      * metadata such as document length, unique terms, and term frequencies.
+     * <p>
+     * <b>Content resolution contract:</b>
+     * <ul>
+     *   <li>If the document carries structured {@code fields} with at least one
+     *       non-blank value, field values are aggregated into a single
+     *       whole-document content stream. {@code rawContent} is ignored in
+     *       this case.</li>
+     *   <li>If fields are absent or all-blank, {@code rawContent} is used as
+     *       the content source.</li>
+     *   <li>Field <em>names</em> (the keys in the fields map) are not
+     *       preserved past this preprocessing stage. After aggregation, the
+     *       downstream indexing and search pipeline sees only one
+     *       undifferentiated content stream.</li>
+     *   <li>The resulting {@code normalizedContent} is the single source used
+     *       by lexical indexing, vector indexing, and ranking for this
+     *       document.</li>
+     * </ul>
+     * <p>
+     * This is a deliberate whole-document model. The system does
+     * <em>not</em> currently support per-field indexing, field-aware ranking,
+     * or field weighting. Field provenance is intentionally discarded at the
+     * preprocessing boundary so that the rest of the pipeline remains simple
+     * and consistent. When field-aware features are added in the future, this
+     * preprocessing stage will be the primary integration point.
      */
     private static final class DocumentPreprocessor {
 
@@ -285,6 +309,23 @@ public final class Indexers {
                     && document.metadata().uniqueTerms() != null;
         }
 
+        /**
+         * Resolves the content source for a document according to the current
+         * whole-document aggregation contract.
+         * <p>
+         * Priority:
+         * <ol>
+         *   <li>If {@code fields} is non-empty and contains at least one
+         *       non-blank value, all non-blank field values are joined with
+         *       spaces and returned. Field names are discarded.</li>
+         *   <li>If fields is empty or all values are blank, fall back to
+         *       {@code rawContent}.</li>
+         * </ol>
+         * <p>
+         * This method intentionally does not preserve per-field provenance.
+         * The returned string is a whole-document content stream that feeds
+         * into tokenization, normalization, and every downstream stage.
+         */
         private String resolveContent(final Document document) {
             final Map<String, String> fields = document.fields();
             if (fields == null || fields.isEmpty()) {

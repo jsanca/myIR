@@ -7,18 +7,39 @@ import java.util.Map;
  * Represents a document inside the Information Retrieval engine.
  *
  * A document contains:
- * - a unique identifier
- * - the raw content (original text)
- * - the normalized content (clean tokens used for indexing)
- * - optional structured fields (for example title, body, summary, tags)
- * - metadata describing the document
+ * <ul>
+ *   <li>a unique identifier</li>
+ *   <li>the raw content (original unprocessed text)</li>
+ *   <li>the normalized content (clean tokens used for indexing)</li>
+ *   <li>optional structured fields (e.g. title, body, summary, tags)</li>
+ *   <li>metadata describing the document</li>
+ * </ul>
  *
  * The design intentionally separates raw and normalized text so that
  * the indexing pipeline can operate only on cleaned tokens while still
  * preserving the original text for debugging, highlighting, or re‑processing.
  *
- * Structured fields allow the engine to evolve toward field-aware indexing
- * and ranking without breaking the current single-content model.
+ * <h3>Current field model (whole-document aggregation)</h3>
+ * <p>
+ * Structured fields currently represent <em>structured input content</em>,
+ * not indexed field dimensions. When fields are present and contain non-blank
+ * values, {@link codex.ir.indexer.Indexers.DocumentPreprocessor DocumentPreprocessor}
+ * aggregates them into a single {@code normalizedContent} string.
+ * After preprocessing, individual field names and boundaries are intentionally
+ * discarded. The resulting normalized content is the single source for lexical
+ * indexing, vector indexing, and ranking.
+ * </p>
+ * <p>
+ * The system does <em>not</em> currently support:
+ * <ul>
+ *   <li>per-field indexing</li>
+ *   <li>field-aware search (e.g. search only in title)</li>
+ *   <li>field weighting or boosting</li>
+ *   <li>per-field term statistics</li>
+ * </ul>
+ * These capabilities are planned for a future evolution of the architecture.
+ * </p>
+ *
  * @author jsanca & elo
  */
 public record Document(String id,

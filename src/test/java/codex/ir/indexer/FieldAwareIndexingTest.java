@@ -19,6 +19,15 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
+/**
+ * Tests for the current whole-document field aggregation contract
+ * (see ADR-004) using lexical search only.
+ * <p>
+ * These tests verify that DocumentPreprocessor correctly aggregates field
+ * values into normalizedContent and that lexical search finds terms from
+ * any field. Per-field search is intentionally not tested because the
+ * system does not yet support it.
+ */
 class FieldAwareIndexingTest {
 
     @Test
