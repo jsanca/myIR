@@ -18,8 +18,7 @@ import codex.ir.ranking.Ranker;
 import codex.ir.ranking.Rankers;
 import codex.ir.search.SearchResult;
 import codex.ir.search.Searcher;
-import codex.ir.search.SimpleSearcher;
-import codex.ir.search.VectorSearcher;
+import codex.ir.search.Searchers;
 import codex.ir.tokenizer.Tokenizer;
 import codex.ir.tokenizer.Tokenizers;
 import codex.ir.vector.*;
@@ -80,7 +79,7 @@ public class Main {
             indexer.index(document);
         }
 
-        final Searcher searcher = new SimpleSearcher(invertedIndex, corpus, tokenizer, normalizer, ranker);
+        final Searcher searcher = Searchers.lexical(invertedIndex, corpus, tokenizer, normalizer, ranker);
 
         System.out.println("How many docs are in my corpus: " + corpus.size());
 
@@ -131,7 +130,7 @@ public class Main {
 
             ingestionService.ingest(documentSource, documentMapper, indexer);
 
-            final Searcher searcher = new SimpleSearcher(invertedIndex, corpus, tokenizer, normalizer, ranker);
+            final Searcher searcher = Searchers.lexical(invertedIndex, corpus, tokenizer, normalizer, ranker);
             managedInstances.add(searcher);
             managedInstances.add(crawlerRuntime);
 
@@ -192,9 +191,10 @@ public class Main {
             ingestionService.ingest(documentSource, documentMapper, indexer);
             final double threshold = 0.1;
 
-            final Searcher searcher = new VectorSearcher(corpus, vocabulary, Vectorizers.sparse(vocabulary),
-                    documentWeighter, documentVectorStore, tokenizer, normalizer, Similarities.sparseCosine(),
-                    threshold
+            final Searcher searcher = Searchers.vector(
+                    tokenizer, normalizer, documentWeighter,
+                    Vectorizers.sparse(vocabulary), Similarities.sparseCosine(),
+                    corpus, documentVectorStore, vocabulary, threshold
             );
 
             managedInstances.add(searcher);

@@ -24,7 +24,7 @@ import java.util.Objects;
  * </pre>
  */
 public record CorpusStatistics(
-        Long version,
+        long version,
         int documentCount,
         long totalDocumentLength,
         int documentsWithLength,
@@ -34,6 +34,7 @@ public record CorpusStatistics(
     /**
      * Canonical constructor with validation.
      *
+     * @param version monotonically increasing snapshot version (must be >= 0)
      * @param documentCount total number of documents in the corpus (must be >= 0)
      * @param totalDocumentLength total length of all documents with length info (must be >= 0)
      * @param documentsWithLength number of documents contributing to length calculations (must be >= 0)
@@ -41,7 +42,6 @@ public record CorpusStatistics(
      * @throws IllegalArgumentException if any value is negative
      */
     public CorpusStatistics {
-        Objects.requireNonNull(version);
         if (version < 0) {
             throw new IllegalArgumentException("version must be >= 0");
         }
@@ -57,6 +57,36 @@ public record CorpusStatistics(
         if (averageDocumentLength < 0) {
             throw new IllegalArgumentException("averageDocumentLength must be >= 0");
         }
+    }
+
+    /**
+     * Returns the zero-state statistics snapshot used before any documents are added.
+     */
+    public static CorpusStatistics empty() {
+        return new CorpusStatistics(0L, 0, 0L, 0, 0.0);
+    }
+
+    /**
+     * Creates a {@link CorpusStatistics} snapshot from pre-aggregated counters,
+     * computing {@code averageDocumentLength} safely (avoids division by zero).
+     *
+     * @param version snapshot version (monotonically incremented by the corpus)
+     * @param documentCount total number of documents in the corpus (must be >= 0)
+     * @param totalDocumentLength total length of all documents with length info (must be >= 0)
+     * @param documentsWithLength number of documents contributing to average length (must be >= 0)
+     * @return immutable statistics snapshot
+     */
+    public static CorpusStatistics snapshot(
+            final long version,
+            final int documentCount,
+            final long totalDocumentLength,
+            final int documentsWithLength
+    ) {
+        final double avgdl = documentsWithLength == 0
+                ? 0.0
+                : (double) totalDocumentLength / documentsWithLength;
+
+        return new CorpusStatistics(version, documentCount, totalDocumentLength, documentsWithLength, avgdl);
     }
 
     /**
@@ -100,35 +130,4 @@ public record CorpusStatistics(
         );
     }
 
-    /**
-     * Creates a {@link CorpusStatistics} instance from pre-aggregated counters.
-     *
-     * <p>This overload avoids iterating over the live {@link Corpus} and is intended for callers
-     * that already maintain incremental counters and only need to materialize an immutable
-     * statistics snapshot.</p>
-     *
-     * @param version version for the snapshot (must be >= 0)
-     * @param documentCount total number of documents in the corpus (must be >= 0)
-     * @param totalDocumentLength total length of all documents with length info (must be >= 0)
-     * @param documentsWithLength number of documents contributing to average length (must be >= 0)
-     * @return a new {@link CorpusStatistics} instance representing the supplied counters
-     */
-    public static CorpusStatistics from(
-            final long version,
-            final int documentCount,
-            final long totalDocumentLength,
-            final int documentsWithLength
-    ) {
-        final double avgdl = documentsWithLength == 0
-                ? 0.0
-                : (double) totalDocumentLength / documentsWithLength;
-
-        return new CorpusStatistics(
-                version,
-                documentCount,
-                totalDocumentLength,
-                documentsWithLength,
-                avgdl
-        );
-    }
 }

@@ -31,12 +31,17 @@ public final class Corpora {
 
     public static Corpus inMemory() {
 
-        return inMemory(CorpusStatisticsRefreshMode.DEBOUNCED);
+        return inMemory(CorpusStatisticsRefreshMode.EAGER);
     }
 
     public static Corpus inMemory(final CorpusStatisticsRefreshMode refreshMode) {
 
         return new InMemoryCorpus(refreshMode, 250L);
+    }
+
+    public static Corpus inMemoryDebounced() {
+
+        return new InMemoryCorpus(CorpusStatisticsRefreshMode.DEBOUNCED, 250L);
     }
 
     /**
@@ -60,7 +65,7 @@ public final class Corpora {
         private final Debouncer debouncer = new Debouncer();
         private final AtomicReference<Long> statisticsSnapshotVersion = new AtomicReference<>(0L);
         private final AtomicReference<CorpusStatistics> statisticsCache = new AtomicReference<>(
-                CorpusStatistics.from(0L, 0, 0L, 0)
+                CorpusStatistics.empty()
         );
         private final AtomicReference<Long> totalDocumentLength = new AtomicReference<>(0L);
         private final AtomicReference<Integer> documentsWithLength = new AtomicReference<>(0);
@@ -210,7 +215,7 @@ public final class Corpora {
         }
 
         private CorpusStatistics buildCurrentStatisticsSnapshot(final long version) {
-            return CorpusStatistics.from(
+            return CorpusStatistics.snapshot(
                     version,
                     this.documentMap.size(),
                     this.totalDocumentLength.get(),
