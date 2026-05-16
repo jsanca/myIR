@@ -73,6 +73,22 @@ public final class Indexers {
     /**
      * Creates an indexer that performs lexical and vector indexing using a
      * shared preprocessing stage.
+     * <p>
+     * This is the preferred factory when both lexical and vector indexes are
+     * needed because it guarantees a single preprocessing lifecycle per
+     * document:
+     * <ol>
+     *   <li>{@code DocumentPreprocessor} preprocesses the document once.</li>
+     *   <li>{@code LexicalIndexer} stores the preprocessed document in the
+     *       corpus and populates the inverted index from its
+     *       {@code normalizedContent}.</li>
+     *   <li>{@code VectorIndexer} receives the same preprocessed document,
+     *       computes term weights from its {@code normalizedContent}, and
+     *       stores the resulting sparse vector.</li>
+     * </ol>
+     * Both indexes are built from the same canonical preprocessed
+     * representation. There is no risk of divergence between lexical and
+     * vector content.
      *
      * @param index the inverted index to populate
      * @param tokenizer the tokenizer used during preprocessing
@@ -300,6 +316,7 @@ public final class Indexers {
 
         private boolean isAlreadyPreprocessed(final Document document) {
             if (document.normalizedContent() == null
+                    || document.normalizedContent().isBlank()
                     || document.metadata() == null
                     || document.metadata().termFrequencies() == null) {
                 return false;

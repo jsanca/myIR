@@ -1,4 +1,4 @@
-package codex.ir.util;
+package codex.ir.web.util;
 
 import codex.ir.ingestion.WebCrawlingConfig;
 import org.slf4j.Logger;

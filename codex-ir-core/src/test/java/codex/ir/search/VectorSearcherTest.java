@@ -27,6 +27,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class VectorSearcherTest {
 
@@ -114,6 +115,49 @@ class VectorSearcherTest {
         assertFalse(results.isEmpty(), "Expected vector search to return at least one result");
         assertEquals("doc2", results.getFirst().document().id(),
                 "Expected programming-focused document to rank first for query 'programming'");
+    }
+
+    @Test
+    void vectorSearcherShouldReturnEmptyListForNullQuery() {
+        final Tokenizer tokenizer = Tokenizers.whitespace();
+        final Normalizer normalizer = Normalizers.english();
+        final Vocabulary vocabulary = Vocabularies.getVocabulary();
+        final Corpus corpus = Corpora.inMemory();
+        final DocumentWeighter documentWeighter = Weighters.termFrequency(tokenizer);
+        final Vectorizer<SparseDocumentVector> vectorizer = Vectorizers.sparse(vocabulary);
+        final DocumentVectorStore documentVectorStore = VectorStores.inMemory();
+
+        final Searcher searcher = Searchers.vector(
+                tokenizer, normalizer, documentWeighter, vectorizer,
+                Similarities.sparseCosine(), corpus, documentVectorStore, vocabulary, 0.1d);
+
+        final List<SearchResult> results = searcher.searchDetailed(null);
+
+        assertTrue(results.isEmpty(),
+                "Expected empty result list for null query instead of exception");
+    }
+
+    @Test
+    void vectorSearcherShouldReturnEmptyListForBlankQuery() {
+        final Tokenizer tokenizer = Tokenizers.whitespace();
+        final Normalizer normalizer = Normalizers.english();
+        final Vocabulary vocabulary = Vocabularies.getVocabulary();
+        final Corpus corpus = Corpora.inMemory();
+        final DocumentWeighter documentWeighter = Weighters.termFrequency(tokenizer);
+        final Vectorizer<SparseDocumentVector> vectorizer = Vectorizers.sparse(vocabulary);
+        final DocumentVectorStore documentVectorStore = VectorStores.inMemory();
+
+        final Searcher searcher = Searchers.vector(
+                tokenizer, normalizer, documentWeighter, vectorizer,
+                Similarities.sparseCosine(), corpus, documentVectorStore, vocabulary, 0.1d);
+
+        final List<SearchResult> emptyResults = searcher.searchDetailed("");
+        assertTrue(emptyResults.isEmpty(),
+                "Expected empty result list for empty query string");
+
+        final List<SearchResult> blankResults = searcher.searchDetailed("   ");
+        assertTrue(blankResults.isEmpty(),
+                "Expected empty result list for blank (whitespace-only) query string");
     }
 
     private static void storeVector(final Corpus corpus,

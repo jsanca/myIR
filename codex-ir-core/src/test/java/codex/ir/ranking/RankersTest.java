@@ -236,4 +236,85 @@ class RankersTest {
         assertEquals(0.0, ranker.idf("java"));
         assertEquals(0.0, ranker.idf("search"));
     }
+
+    @Test
+    void bm25RankerShouldReturnZeroWhenDocumentHasNullLength() {
+        final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
+        final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
+
+        final Document docWithLength = Document.builder()
+                .id("doc-with-length")
+                .rawContent("java search engine")
+                .normalizedContent("java search engine")
+                .length(3)
+                .uniqueTerms(3)
+                .build();
+
+        final Document docWithoutLength = Document.builder()
+                .id("doc-no-length")
+                .rawContent("java")
+                .build();
+
+        corpus.add(docWithLength);
+        corpus.add(docWithoutLength);
+
+        invertedIndex.add("java", "doc-with-length", 0);
+        invertedIndex.add("java", "doc-no-length", 0);
+
+        final Ranker ranker = Rankers.bm25(corpus, invertedIndex);
+
+        final Posting posting = invertedIndex.getPostings("java")
+                .stream()
+                .filter(p -> "doc-no-length".equals(p.documentId()))
+                .findFirst()
+                .orElseThrow();
+
+        final double score = ranker.score("java", posting);
+
+        assertEquals(0.0, score,
+                "Expected BM25 to return 0 for a document with null length metadata. "
+                + "The document matches the query but cannot be scored because its metadata "
+                + "lacks document length information.");
+    }
+
+    @Test
+    void bm25RankerShouldReturnPositiveScoreWhenDocumentHasLength() {
+        final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
+        final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
+
+        final Document doc1 = Document.builder()
+                .id("doc-1")
+                .rawContent("java search engine")
+                .normalizedContent("java search engine")
+                .length(3)
+                .uniqueTerms(3)
+                .build();
+
+        final Document doc2 = Document.builder()
+                .id("doc-2")
+                .rawContent("rust programming")
+                .normalizedContent("rust programming")
+                .length(2)
+                .uniqueTerms(2)
+                .build();
+
+        corpus.add(doc1);
+        corpus.add(doc2);
+
+        invertedIndex.add("java", "doc-1", 0);
+        invertedIndex.add("rust", "doc-2", 0);
+
+        final Ranker ranker = Rankers.bm25(corpus, invertedIndex);
+
+        final Posting posting = invertedIndex.getPostings("java")
+                .stream()
+                .filter(p -> "doc-1".equals(p.documentId()))
+                .findFirst()
+                .orElseThrow();
+
+        final double score = ranker.score("java", posting);
+
+        assertTrue(score > 0.0,
+                "Expected BM25 to return a positive score when document has valid length metadata");
+    }
 }

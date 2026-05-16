@@ -182,7 +182,7 @@ public final class Normalizers {
                 return Optional.empty();
             }
 
-            final String normalized = token.replaceAll("^[^a-z0-9]+|[^a-z0-9]+$", "");
+            final String normalized = token.replaceAll("^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$", "");
             if (normalized.isEmpty()) {
                 return Optional.empty();
             }

@@ -83,12 +83,18 @@ public class SimpleSearcher implements Searcher {
      * normalized query terms are merged using union semantics, while keeping
      * track of which normalized terms matched each document.
      *
+     * Null, empty, and blank queries return an empty result list.
+     *
      * @param query raw user query
      * @return detailed search results containing documents and matched terms
      */
     @Override
     public List<SearchResult> searchDetailed(final String query) {
-        Objects.requireNonNull(query);
+        if (query == null || query.isBlank()) {
+            LOGGER.debug("Search query is null or blank. Returning empty results.");
+            return List.of();
+        }
+
         LOGGER.debug("Search query {}", query);
 
         final List<String> queryTokens = this.tokenizer.tokenize(query);

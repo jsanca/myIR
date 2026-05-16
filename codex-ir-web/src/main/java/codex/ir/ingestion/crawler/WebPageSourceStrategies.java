@@ -7,12 +7,14 @@ import codex.ir.concurrent.VTExecutor;
 import codex.ir.concurrent.VTExecutors;
 import codex.ir.ingestion.WebCrawlingConfig;
 import codex.ir.ingestion.WebPage;
-import codex.ir.util.HttpUtil;
-import codex.ir.util.UriUtil;
+import codex.ir.ingestion.crawler.fetcher.WebHttpFetcher;
+import codex.ir.ingestion.crawler.fetcher.WebHttpFetchers;
+import codex.ir.ingestion.crawler.sitemap.SitemapSiteTraversalStrategy;
+import codex.ir.web.util.HttpUtil;
+import codex.ir.web.util.UriUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Objects;
@@ -22,6 +24,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Factory and container for {@link WebPageSourceStrategy} implementations.
@@ -333,15 +336,65 @@ public final class WebPageSourceStrategies {
         }
     }
 
-    private static class SiteMapStrategy implements WebPageSourceStrategy {
-
-        @Override
-        public void readInto(final Consumer<WebPage> consumer) {
-            throw new UnsupportedOperationException("SiteMapStrategy is not implemented yet");
-        }
+    /**
+     * Creates a sitemap-based traversal strategy using the static HTML fetch path.
+     *
+     * @param config crawling configuration
+     * @param rootUri the base URL for sitemap discovery
+     * @return sitemap traversal strategy
+     */
+    public static WebPageSourceStrategy sitemapTraversal(
+            final WebCrawlingConfig config,
+            final URI rootUri
+    ) {
+        return sitemapTraversal(
+                config,
+                rootUri,
+                UriCanonicalizers.defaultWeb(),
+                VisitedUriRegistries.inMemory(),
+                () -> WebPageFetcherRegistries.simple(config.httpClientConfig()).staticHtml(),
+                WebHttpFetchers.jdk(config.httpClientConfig())
+        );
     }
 
     /**
+     * Creates a sitemap-based traversal strategy with full control over dependencies.
+     *
+     * @param config crawling configuration
+     * @param rootUri the base URL for sitemap discovery
+     * @param uriCanonicalizer URI canonicalization strategy
+     * @param visitedUriRegistry visited URI tracker
+     * @param fetcherFactory produces WebPageFetcher instances for page fetching
+     * @param httpFetcher low-level HTTP fetcher for sitemap and robots.txt requests
+     * @return sitemap traversal strategy
+     */
+    public static WebPageSourceStrategy sitemapTraversal(
+            final WebCrawlingConfig config,
+            final URI rootUri,
+            final UriCanonicalizer uriCanonicalizer,
+            final VisitedUriRegistry visitedUriRegistry,
+            final Supplier<WebPageFetcher> fetcherFactory,
+            final WebHttpFetcher httpFetcher
+    ) {
+        Objects.requireNonNull(config, "config must not be null");
+        Objects.requireNonNull(rootUri, "rootUri must not be null");
+        Objects.requireNonNull(uriCanonicalizer, "uriCanonicalizer must not be null");
+        Objects.requireNonNull(visitedUriRegistry, "visitedUriRegistry must not be null");
+        Objects.requireNonNull(fetcherFactory, "fetcherFactory must not be null");
+        Objects.requireNonNull(httpFetcher, "httpFetcher must not be null");
+
+        return new SitemapSiteTraversalStrategy(
+                config,
+                rootUri,
+                uriCanonicalizer,
+                visitedUriRegistry,
+                fetcherFactory,
+                httpFetcher
+        );
+    }
+
+    /**
+     * Small traversal unit tracked in the frontier.
      * Small traversal unit tracked in the frontier.
      */
     private record TraversalNode(URI uri, int depth, URI rootUri) {

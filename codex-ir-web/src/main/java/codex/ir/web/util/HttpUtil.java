@@ -1,4 +1,4 @@
-package codex.ir.util;
+package codex.ir.web.util;
 
 import java.net.URI;
 

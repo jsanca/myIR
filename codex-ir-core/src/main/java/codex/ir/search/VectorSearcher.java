@@ -53,8 +53,6 @@ public class VectorSearcher implements Searcher {
 
     @Override
     public List<Document> search(final String query) {
-
-        Objects.requireNonNull(query, "query should be non null");
         return this.searchDetailed(query)
                 .stream()
                 .map(SearchResult::document)
@@ -63,7 +61,10 @@ public class VectorSearcher implements Searcher {
 
     @Override
     public List<SearchResult> searchDetailed(final String query) {
-        Objects.requireNonNull(query, "query should be non null");
+        if (query == null || query.isBlank()) {
+            LOGGER.info("Vector search query is null or blank. Returning empty results.");
+            return List.of();
+        }
 
         LOGGER.info("Starting vector search for query='{}'", query);
 

@@ -10,16 +10,25 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>codex-ir-core</artifactId>
+    <artifactId>codex-ir-web</artifactId>
 
     <dependencies>
+        <dependency>
+            <groupId>codex</groupId>
+            <artifactId>codex-ir-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

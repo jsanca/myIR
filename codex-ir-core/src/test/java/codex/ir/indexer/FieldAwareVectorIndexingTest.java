@@ -334,4 +334,151 @@ class FieldAwareVectorIndexingTest {
         assertEquals(2, results.size(),
                 "Expected vector search for 'programming' to find both the python and scala documents");
     }
+
+    @Test
+    void lexicalAndVectorShouldUseNormalizedContentForBothIndexes() {
+        final Tokenizer tokenizer = Tokenizers.whitespace();
+        final Normalizer normalizer = Normalizers.english();
+        final Corpus corpus = Corpora.inMemory();
+        final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
+        final DocumentWeighter documentWeighter = Weighters.tfIdf(tokenizer, invertedIndex);
+        final Vocabulary vocabulary = Vocabularies.getVocabulary();
+        final Vectorizer<SparseDocumentVector> vectorizer = Vectorizers.sparse(vocabulary);
+        final DocumentVectorStore documentVectorStore = VectorStores.inMemory();
+
+        final Document seedDoc = Document.builder()
+                .id("seed-doc")
+                .rawContent("background seed document for corpus statistics")
+                .build();
+
+        final Indexer lexicalIndexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
+        lexicalIndexer.index(seedDoc);
+
+        final Indexer indexer = Indexers.lexicalAndVector(
+                invertedIndex, tokenizer, normalizer,
+                documentWeighter, vectorizer, documentVectorStore, corpus);
+
+        final Document doc = Document.builder()
+                .id("mixed-case-doc")
+                .field("title", "THE Java Platform")
+                .field("body", "The guide covers search engines")
+                .build();
+
+        final Document otherDoc = Document.builder()
+                .id("other-doc")
+                .field("title", "another document")
+                .field("body", "for corpus statistics diversity")
+                .build();
+
+        indexer.index(doc);
+        indexer.index(otherDoc);
+
+        final Searcher lexicalSearcher = Searchers.lexical(
+                invertedIndex, corpus, tokenizer, normalizer,
+                Rankers.tfIdf(corpus, invertedIndex));
+
+        final Searcher vectorSearcher = Searchers.vector(
+                tokenizer, normalizer, documentWeighter, vectorizer,
+                Similarities.sparseCosine(), corpus, documentVectorStore, vocabulary, 0.1d);
+
+        List<SearchResult> results = lexicalSearcher.searchDetailed("java");
+        assertFalse(results.isEmpty(),
+                "Expected lexical search to find lowercased term from title field");
+        assertEquals("mixed-case-doc", results.getFirst().document().id());
+
+        results = lexicalSearcher.searchDetailed("platform");
+        assertFalse(results.isEmpty(),
+                "Expected lexical search to find lowercased term from title field");
+        assertEquals("mixed-case-doc", results.getFirst().document().id());
+
+        results = lexicalSearcher.searchDetailed("guide");
+        assertFalse(results.isEmpty(),
+                "Expected lexical search to find term from body field");
+        assertEquals("mixed-case-doc", results.getFirst().document().id());
+
+        results = lexicalSearcher.searchDetailed("the");
+        assertTrue(results.isEmpty(),
+                "Expected lexical search for stop word 'the' to return no results");
+
+        results = lexicalSearcher.searchDetailed("THE");
+        assertTrue(results.isEmpty(),
+                "Expected lexical search for uppercase stop word 'THE' to return no results");
+
+        results = vectorSearcher.searchDetailed("engines");
+        assertFalse(results.isEmpty(),
+                "Expected vector search to find term from body field via normalizedContent");
+        assertEquals("mixed-case-doc", results.getFirst().document().id());
+
+        results = vectorSearcher.searchDetailed("platform");
+        assertFalse(results.isEmpty(),
+                "Expected vector search to find lowercased term from title field via normalizedContent");
+        assertEquals("mixed-case-doc", results.getFirst().document().id());
+
+        results = vectorSearcher.searchDetailed("the");
+        assertTrue(results.isEmpty(),
+                "Expected vector search for stop word 'the' to return no results "
+                + "(would fail if vector indexing used raw field content instead of normalizedContent)");
+    }
+
+    @Test
+    void vectorIndexingMustUsePreprocessedDocumentNotOriginal() {
+        final Tokenizer tokenizer = Tokenizers.whitespace();
+        final Normalizer normalizer = Normalizers.english();
+        final Corpus corpus = Corpora.inMemory();
+        final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
+        final DocumentWeighter documentWeighter = Weighters.tfIdf(tokenizer, invertedIndex);
+        final Vocabulary vocabulary = Vocabularies.getVocabulary();
+        final Vectorizer<SparseDocumentVector> vectorizer = Vectorizers.sparse(vocabulary);
+        final DocumentVectorStore documentVectorStore = VectorStores.inMemory();
+
+        final Document seedDoc = Document.builder()
+                .id("seed-doc")
+                .rawContent("background seed document for corpus statistics")
+                .build();
+
+        final Indexer lexicalIndexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
+        lexicalIndexer.index(seedDoc);
+
+        final Indexer indexer = Indexers.lexicalAndVector(
+                invertedIndex, tokenizer, normalizer,
+                documentWeighter, vectorizer, documentVectorStore, corpus);
+
+        final Document doc = Document.builder()
+                .id("lifecycle-doc")
+                .rawContent("THE legacy old content here")
+                .field("title", "modern techniques today")
+                .build();
+
+        final Document otherDoc = Document.builder()
+                .id("other-doc")
+                .rawContent("separate background content")
+                .build();
+
+        indexer.index(doc);
+        indexer.index(otherDoc);
+
+        final Searcher vectorSearcher = Searchers.vector(
+                tokenizer, normalizer, documentWeighter, vectorizer,
+                Similarities.sparseCosine(), corpus, documentVectorStore, vocabulary, 0.1d);
+
+        List<SearchResult> results = vectorSearcher.searchDetailed("modern");
+        assertFalse(results.isEmpty(),
+                "Expected vector search to find field term 'modern' from preprocessed document");
+        assertEquals("lifecycle-doc", results.getFirst().document().id());
+
+        results = vectorSearcher.searchDetailed("techniques");
+        assertFalse(results.isEmpty(),
+                "Expected vector search to find field term 'techniques' from preprocessed document");
+        assertEquals("lifecycle-doc", results.getFirst().document().id());
+
+        results = vectorSearcher.searchDetailed("legacy");
+        assertTrue(results.isEmpty(),
+                "Expected vector search for rawContent term 'legacy' to return no results "
+                + "(would fail if vector indexing used original raw document instead of preprocessed document)");
+
+        results = vectorSearcher.searchDetailed("the");
+        assertTrue(results.isEmpty(),
+                "Expected vector search for stop word 'the' from rawContent to return no results "
+                + "(would fail if vector indexing used original raw document instead of preprocessed document)");
+    }
 }

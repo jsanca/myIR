@@ -10,21 +10,22 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>codex-ir-core</artifactId>
+    <artifactId>codex-ir-app</artifactId>
 
     <dependencies>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
+            <groupId>codex</groupId>
+            <artifactId>codex-ir-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>codex</groupId>
+            <artifactId>codex-ir-web</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 

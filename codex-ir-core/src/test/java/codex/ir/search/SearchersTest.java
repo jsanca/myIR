@@ -20,6 +20,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SearchersTest {
 
@@ -44,5 +45,38 @@ class SearchersTest {
         final List<SearchResult> results = searcher.searchDetailed("search");
         assertFalse(results.isEmpty(), "Expected lexical searcher to find matching documents");
         assertEquals("doc1", results.getFirst().document().id());
+    }
+
+    @Test
+    void lexicalSearcherShouldReturnEmptyListForNullQuery() {
+        final Tokenizer tokenizer = Tokenizers.whitespace();
+        final Normalizer normalizer = Normalizers.english();
+        final Corpus corpus = Corpora.inMemory();
+        final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
+        final Ranker ranker = Rankers.binary();
+        final Searcher searcher = Searchers.lexical(invertedIndex, corpus, tokenizer, normalizer, ranker);
+
+        final List<SearchResult> results = searcher.searchDetailed(null);
+
+        assertTrue(results.isEmpty(),
+                "Expected empty result list for null query instead of exception");
+    }
+
+    @Test
+    void lexicalSearcherShouldReturnEmptyListForBlankQuery() {
+        final Tokenizer tokenizer = Tokenizers.whitespace();
+        final Normalizer normalizer = Normalizers.english();
+        final Corpus corpus = Corpora.inMemory();
+        final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
+        final Ranker ranker = Rankers.binary();
+        final Searcher searcher = Searchers.lexical(invertedIndex, corpus, tokenizer, normalizer, ranker);
+
+        final List<SearchResult> blankResults = searcher.searchDetailed("");
+        assertTrue(blankResults.isEmpty(),
+                "Expected empty result list for empty query string");
+
+        final List<SearchResult> spacesResults = searcher.searchDetailed("   ");
+        assertTrue(spacesResults.isEmpty(),
+                "Expected empty result list for blank (whitespace-only) query string");
     }
 }

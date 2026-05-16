@@ -86,6 +86,60 @@ class NormalizersTest {
     }
 
     @Test
+    void trimNonAlphaNumericShouldPreserveUppercaseLetters() {
+        final Optional<String> result = Normalizers.trimNonAlphaNumeric().normalize("HELLO");
+
+        assertTrue(result.isPresent());
+        assertEquals("HELLO", result.get(),
+                "Expected uppercase letters to be preserved (they are alphabetic)");
+    }
+
+    @Test
+    void trimNonAlphaNumericShouldTrimPunctuationButPreserveUppercase() {
+        final Optional<String> result = Normalizers.trimNonAlphaNumeric().normalize("HELLO!!!");
+
+        assertTrue(result.isPresent());
+        assertEquals("HELLO", result.get(),
+                "Expected trailing punctuation to be removed while preserving uppercase letters");
+    }
+
+    @Test
+    void trimNonAlphaNumericShouldPreserveUppercaseLettersAndDigits() {
+        final Optional<String> result = Normalizers.trimNonAlphaNumeric().normalize("ABC123");
+
+        assertTrue(result.isPresent());
+        assertEquals("ABC123", result.get(),
+                "Expected uppercase letters and digits to be preserved");
+    }
+
+    @Test
+    void trimNonAlphaNumericShouldPreserveMixedCase() {
+        final Optional<String> result = Normalizers.trimNonAlphaNumeric().normalize("MyIR!!!");
+
+        assertTrue(result.isPresent());
+        assertEquals("MyIR", result.get(),
+                "Expected mixed-case letters to be preserved while trimming punctuation");
+    }
+
+    @Test
+    void trimNonAlphaNumericShouldPreserveHyphenatedUppercase() {
+        final Optional<String> result = Normalizers.trimNonAlphaNumeric().normalize("Java-25");
+
+        assertTrue(result.isPresent());
+        assertEquals("Java-25", result.get(),
+                "Expected mixed-case letters, hyphen, and digits to be preserved");
+    }
+
+    @Test
+    void trimNonAlphaNumericShouldPreserveLeadingUppercaseWithTrailingPunctuation() {
+        final Optional<String> result = Normalizers.trimNonAlphaNumeric().normalize("...UPPERCASE!!!");
+
+        assertTrue(result.isPresent());
+        assertEquals("UPPERCASE", result.get(),
+                "Expected leading and trailing punctuation to be removed while preserving uppercase");
+    }
+
+    @Test
     void accentFoldingShouldRemoveSpanishDiacritics() {
         final Optional<String> result = Normalizers.accentFolding().normalize("canción");
 
