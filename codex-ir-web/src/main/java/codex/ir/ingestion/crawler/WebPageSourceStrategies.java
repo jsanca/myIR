@@ -2,16 +2,17 @@ package codex.ir.ingestion.crawler;
 
 import codex.ir.canonicalizer.UriCanonicalizer;
 import codex.ir.canonicalizer.UriCanonicalizers;
-import codex.ir.concurrent.VTConfig;
-import codex.ir.concurrent.VTExecutor;
-import codex.ir.concurrent.VTExecutors;
 import codex.ir.ingestion.WebCrawlingConfig;
-import codex.ir.ingestion.WebPage;
+import codex.ir.ingestion.crawler.classifier.UrlClassifier;
+import codex.ir.ingestion.crawler.classifier.UrlClassifiers;
+import codex.ir.ingestion.crawler.classifier.UrlFilter;
+import codex.ir.ingestion.crawler.classifier.UrlFilters;
+import codex.ir.ingestion.crawler.WebPageFetcher;
 import codex.ir.ingestion.crawler.fetcher.WebHttpFetcher;
 import codex.ir.ingestion.crawler.fetcher.WebHttpFetchers;
-import codex.ir.ingestion.crawler.sitemap.SitemapSiteTraversalStrategy;
-import codex.ir.web.util.HttpUtil;
-import codex.ir.web.util.UriUtil;
+import codex.ir.ingestion.crawler.internal.sitemap.SitemapSiteTraversalStrategy;
+import codex.ir.ingestion.crawler.internal.traversal.SeededWebPageTraversal;
+import codex.ir.ingestion.crawler.internal.traversal.SiteTraversalStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,11 +20,6 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -34,6 +30,9 @@ import java.util.function.Supplier;
  * @author jsanca & elo
  */
 public final class WebPageSourceStrategies {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(WebPageSourceStrategies.class);
+    private static final boolean NO_EXPAND_LINKS = false;
 
     private WebPageSourceStrategies() {
     }
@@ -141,203 +140,16 @@ public final class WebPageSourceStrategies {
                 uriCanonicalizer,
                 seeds,
                 webPageFetcherRegistry::staticHtml,
-                visitedUriRegistry
+                visitedUriRegistry,
+                true
         );
     }
 
     /**
-     * Factory for building a {@link WebPageFetcher} bound to a specific link subscriber.
-     */
-    @FunctionalInterface
-    private interface WebPageFetcherFactory  {
-        WebPageFetcher create();
-    }
-
-    /**
-     * Traverses a site breadth-first using a shared frontier and a visited registry.
-     *
-     * <p>This strategy is responsible only for traversal concerns:
-     * frontier management, depth control, visited tracking, link filtering,
-     * backpressure-aware task submission, and emitting fetched pages into the
-     * provided consumer.</p>
-     */
-    private static class SiteTraversalStrategy implements WebPageSourceStrategy, AutoCloseable {
-
-        private static final Logger LOGGER = LoggerFactory.getLogger(SiteTraversalStrategy.class);
-        private static final long FRONTIER_POLL_TIMEOUT_MILLIS = 250L;
-
-        private final WebCrawlingConfig config;
-        private final UriCanonicalizer uriCanonicalizer;
-        private final Set<URI> rootUris;
-        private final WebPageFetcherFactory fetcherFactory;
-        private final VisitedUriRegistry visitedUriRegistry;
-        private final BlockingQueue<TraversalNode> frontier = new LinkedBlockingQueue<>();
-        private final AtomicInteger inFlightTasks = new AtomicInteger();
-        private final AtomicInteger emittedPages = new AtomicInteger();
-        private final VTExecutor executor;
-
-        private SiteTraversalStrategy(
-                final WebCrawlingConfig config,
-                final UriCanonicalizer uriCanonicalizer,
-                final Set<URI> rootUris,
-                final WebPageFetcherFactory fetcherFactory,
-                final VisitedUriRegistry visitedUriRegistry
-        ) {
-            this.config = Objects.requireNonNull(config, "config must not be null");
-            this.uriCanonicalizer = Objects.requireNonNull(uriCanonicalizer, "uriCanonicalizer must not be null");
-            this.rootUris = Objects.requireNonNull(rootUris, "rootUris must not be null");
-            this.fetcherFactory = Objects.requireNonNull(fetcherFactory, "fetcherFactory must not be null");
-            this.visitedUriRegistry = Objects.requireNonNull(visitedUriRegistry, "visitedUriRegistry must not be null");
-            this.executor = VTExecutors.createVirtualThreadExecutor(new VTConfig(config.maxConcurrentRequests()));
-        }
-
-        @Override
-        public void readInto(final Consumer<WebPage> consumer) {
-            Objects.requireNonNull(consumer, "consumer must not be null");
-
-            seedFrontier();
-
-            while (true) {
-                if (this.emittedPages.get() >= this.config.maxPages()) {
-                    LOGGER.debug("Stopping traversal because maxPages={} was reached", this.config.maxPages());
-                    break;
-                }
-
-                final TraversalNode nextNode = pollNextNode();
-                if (nextNode == null) {
-                    if (this.inFlightTasks.get() == 0 && this.frontier.isEmpty()) {
-                        LOGGER.debug("Traversal finished: no pending nodes and no in-flight tasks");
-                        break;
-                    }
-                    continue;
-                }
-
-                if (!shouldVisit(nextNode)) {
-                    continue;
-                }
-
-                this.inFlightTasks.incrementAndGet();
-                this.executor.execute(() -> processNode(nextNode, consumer));
-            }
-        }
-
-        private void seedFrontier() {
-            for (final URI rootUri : this.rootUris) {
-                this.frontier.offer(new TraversalNode(rootUri, 0, rootUri));
-            }
-            LOGGER.debug("Seeded traversal frontier with {} root URI(s)", this.rootUris.size());
-        }
-
-        private TraversalNode pollNextNode() {
-            try {
-                return this.frontier.poll(FRONTIER_POLL_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
-            } catch (final InterruptedException exception) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("Traversal interrupted while waiting for frontier nodes", exception);
-            }
-        }
-
-        private boolean shouldVisit(final TraversalNode node) {
-            if (node.depth() > this.config.maxDepth()) {
-                return false;
-            }
-
-            final URI canonicalUri = this.uriCanonicalizer.canonicalize(node.uri());
-
-            if (!HttpUtil.isHttpUri(canonicalUri)) {
-                return false;
-            }
-
-            if (!UriUtil.isAllowedByDomainRules(canonicalUri, node.rootUri(), this.config)) {
-                return false;
-            }
-
-            if (isDisallowedPath(canonicalUri)) {
-                return false;
-            }
-
-            return this.visitedUriRegistry.markVisited(canonicalUri);
-        }
-
-        private void processNode(final TraversalNode node, final Consumer<WebPage> consumer) {
-
-            WebPageFetcher fetcher = null;
-            try {
-                if (this.config.delayMillisBetweenRequests() > 0) {
-                    Thread.sleep(this.config.delayMillisBetweenRequests());
-                }
-
-                final Consumer<Set<URI>> linkSubscriber = links -> enqueueDiscoveredLinks(node, links);
-                fetcher = this.fetcherFactory.create();
-                final URI canonicalUri = this.uriCanonicalizer.canonicalize(node.uri());
-                fetcher.fetch(canonicalUri, linkSubscriber).ifPresent(page -> emitPage(page, consumer));
-            } catch (final InterruptedException exception) {
-                Thread.currentThread().interrupt();
-                LOGGER.warn("Traversal task interrupted for URI {}", node.uri(), exception);
-            } catch (final RuntimeException exception) {
-                LOGGER.warn("Traversal task failed for URI {}", node.uri(), exception);
-            } finally {
-                this.inFlightTasks.decrementAndGet();
-            }
-        }
-
-        private void emitPage(final WebPage page, final Consumer<WebPage> consumer) {
-            while (true) {
-                final int current = this.emittedPages.get();
-                if (current >= this.config.maxPages()) {
-                    return;
-                }
-                if (this.emittedPages.compareAndSet(current, current + 1)) {
-                    consumer.accept(page);
-                    return;
-                }
-            }
-        }
-
-        private void enqueueDiscoveredLinks(final TraversalNode parentNode, final Set<URI> discoveredLinks) {
-            if (discoveredLinks == null || discoveredLinks.isEmpty()) {
-                return;
-            }
-
-            final int nextDepth = parentNode.depth() + 1;
-            if (nextDepth > this.config.maxDepth()) {
-                return;
-            }
-
-            for (final URI discoveredLink : discoveredLinks) {
-                if (discoveredLink == null) {
-                    continue;
-                }
-
-                final URI canonicalDiscoveredLink = this.uriCanonicalizer.canonicalize(discoveredLink);
-                if (!HttpUtil.isHttpUri(canonicalDiscoveredLink)
-                        || !UriUtil.isAllowedByDomainRules(canonicalDiscoveredLink, parentNode.rootUri(), this.config)
-                        || isDisallowedPath(canonicalDiscoveredLink)
-                        || this.visitedUriRegistry.isVisited(canonicalDiscoveredLink)) {
-                    continue;
-                }
-
-                this.frontier.offer(new TraversalNode(canonicalDiscoveredLink, nextDepth, parentNode.rootUri()));
-            }
-        }
-
-        private boolean isDisallowedPath(final URI uri) {
-
-            final String path = uri.getPath() == null ? "" : uri.getPath();
-            return this.config.disallowedPaths().stream().anyMatch(path::startsWith);
-        }
-
-        @Override
-        public void close() throws Exception {
-
-            if (null != executor) {
-                executor.close();
-            }
-        }
-    }
-
-    /**
      * Creates a sitemap-based traversal strategy using the static HTML fetch path.
+     *
+     * <p>Uses the default {@link UrlClassifiers#defaultWeb()} classifier and an
+     * accept-all filter (backward-compatible — all discovered URLs are fetched).</p>
      *
      * @param config crawling configuration
      * @param rootUri the base URL for sitemap discovery
@@ -350,10 +162,36 @@ public final class WebPageSourceStrategies {
         return sitemapTraversal(
                 config,
                 rootUri,
+                UrlClassifiers.wordpressWooCommerceDefaultWeb(),
+                UrlFilters.acceptAll()
+        );
+    }
+
+    /**
+     * Creates a sitemap-based traversal strategy with URL classification
+     * and filtering.
+     *
+     * @param config crawling configuration
+     * @param rootUri the base URL for sitemap discovery
+     * @param urlClassifier classifies discovered URLs into types
+     * @param urlFilter decides which classified URLs to include
+     * @return sitemap traversal strategy
+     */
+    public static WebPageSourceStrategy sitemapTraversal(
+            final WebCrawlingConfig config,
+            final URI rootUri,
+            final UrlClassifier urlClassifier,
+            final UrlFilter urlFilter
+    ) {
+        return sitemapTraversal(
+                config,
+                rootUri,
                 UriCanonicalizers.defaultWeb(),
                 VisitedUriRegistries.inMemory(),
-                () -> WebPageFetcherRegistries.simple(config.httpClientConfig()).staticHtml(),
-                WebHttpFetchers.jdk(config.httpClientConfig())
+                WebPageFetcherRegistries.simple(config.httpClientConfig())::staticHtml,
+                WebHttpFetchers.jdk(config.httpClientConfig()),
+                urlClassifier,
+                urlFilter
         );
     }
 
@@ -376,6 +214,36 @@ public final class WebPageSourceStrategies {
             final Supplier<WebPageFetcher> fetcherFactory,
             final WebHttpFetcher httpFetcher
     ) {
+        return sitemapTraversal(
+                config, rootUri, uriCanonicalizer, visitedUriRegistry,
+                fetcherFactory, httpFetcher, null, null
+        );
+    }
+
+    /**
+     * Creates a sitemap-based traversal strategy with full control including
+     * URL classification and filtering.
+     *
+     * @param config crawling configuration
+     * @param rootUri the base URL for sitemap discovery
+     * @param uriCanonicalizer URI canonicalization strategy
+     * @param visitedUriRegistry visited URI tracker
+     * @param fetcherFactory produces WebPageFetcher instances for page fetching
+     * @param httpFetcher low-level HTTP fetcher for sitemap and robots.txt requests
+     * @param urlClassifier classifies discovered URLs into types, or null to skip
+     * @param urlFilter decides which classified URLs to include, or null to skip
+     * @return sitemap traversal strategy
+     */
+    public static WebPageSourceStrategy sitemapTraversal(
+            final WebCrawlingConfig config,
+            final URI rootUri,
+            final UriCanonicalizer uriCanonicalizer,
+            final VisitedUriRegistry visitedUriRegistry,
+            final Supplier<WebPageFetcher> fetcherFactory,
+            final WebHttpFetcher httpFetcher,
+            final UrlClassifier urlClassifier,
+            final UrlFilter urlFilter
+    ) {
         Objects.requireNonNull(config, "config must not be null");
         Objects.requireNonNull(rootUri, "rootUri must not be null");
         Objects.requireNonNull(uriCanonicalizer, "uriCanonicalizer must not be null");
@@ -383,20 +251,29 @@ public final class WebPageSourceStrategies {
         Objects.requireNonNull(fetcherFactory, "fetcherFactory must not be null");
         Objects.requireNonNull(httpFetcher, "httpFetcher must not be null");
 
+        final SeededWebPageTraversal seededTraversal = (seedUris, consumer) -> {
+            final SiteTraversalStrategy pageFetcher = new SiteTraversalStrategy(
+                    config,
+                    uriCanonicalizer,
+                    seedUris,
+                    fetcherFactory,
+                    visitedUriRegistry,
+                    NO_EXPAND_LINKS
+            );
+            try (pageFetcher) {
+                pageFetcher.readInto(consumer);
+            }
+        };
+
         return new SitemapSiteTraversalStrategy(
                 config,
                 rootUri,
                 uriCanonicalizer,
-                visitedUriRegistry,
-                fetcherFactory,
-                httpFetcher
+                httpFetcher,
+                seededTraversal,
+                urlClassifier,
+                urlFilter
         );
     }
 
-    /**
-     * Small traversal unit tracked in the frontier.
-     * Small traversal unit tracked in the frontier.
-     */
-    private record TraversalNode(URI uri, int depth, URI rootUri) {
-    }
 }

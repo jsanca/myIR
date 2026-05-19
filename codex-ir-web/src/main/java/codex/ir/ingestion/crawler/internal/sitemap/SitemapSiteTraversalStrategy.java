@@ -1,13 +1,15 @@
-package codex.ir.ingestion.crawler.sitemap;
+package codex.ir.ingestion.crawler.internal.sitemap;
 
 import codex.ir.canonicalizer.UriCanonicalizer;
 import codex.ir.ingestion.WebCrawlingConfig;
 import codex.ir.ingestion.WebPage;
-import codex.ir.ingestion.crawler.WebPageFetcher;
+import codex.ir.ingestion.crawler.internal.traversal.SeededWebPageTraversal;
 import codex.ir.ingestion.crawler.WebPageSourceStrategy;
+import codex.ir.ingestion.crawler.classifier.ClassifiedUrl;
+import codex.ir.ingestion.crawler.classifier.UrlClassifier;
+import codex.ir.ingestion.crawler.classifier.UrlFilter;
 import codex.ir.ingestion.crawler.fetcher.WebHttpFetcher;
 import codex.ir.ingestion.crawler.fetcher.WebHttpResponse;
-import codex.ir.ingestion.crawler.VisitedUriRegistry;
 import codex.ir.web.util.HttpUtil;
 import codex.ir.web.util.UriUtil;
 import org.slf4j.Logger;
@@ -20,14 +22,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /**
  * Produces {@link WebPage} instances by discovering URLs from XML
- * sitemaps.
+ * sitemaps and delegating page fetching to an injected
+ * {@link SeededWebPageTraversal} delegate.
  *
- * <p>This strategy replaces the old {@code SiteMapStrategy} stub with a real
- * implementation that supports:</p>
+ * <p>This strategy supports:</p>
  * <ul>
  *   <li>robots.txt sitemap discovery</li>
  *   <li>known sitemap path fallback ({@code /sitemap.xml}, etc.)</li>
@@ -35,6 +36,10 @@ import java.util.function.Supplier;
  *   <li>{@code <urlset>} URL extraction</li>
  *   <li>URL canonicalization and deduplication</li>
  * </ul>
+ *
+ * <p>The strategy is focused only on sitemap discovery and URL collection.
+ * It does not know how page URIs are fetched or emitted — that
+ * responsibility belongs to the injected delegate.</p>
  */
 public final class SitemapSiteTraversalStrategy implements WebPageSourceStrategy {
 
@@ -51,30 +56,41 @@ public final class SitemapSiteTraversalStrategy implements WebPageSourceStrategy
     private final WebCrawlingConfig config;
     private final URI rootUri;
     private final UriCanonicalizer uriCanonicalizer;
-    private final VisitedUriRegistry visitedUriRegistry;
-    private final Supplier<WebPageFetcher> fetcherFactory;
     private final WebHttpFetcher httpFetcher;
+    private final SeededWebPageTraversal seededTraversal;
+    private final UrlClassifier urlClassifier;
+    private final UrlFilter urlFilter;
     private final SitemapParser sitemapParser;
     private final RobotsParser robotsParser;
-    private int emittedPages;
 
     public SitemapSiteTraversalStrategy(
             final WebCrawlingConfig config,
             final URI rootUri,
             final UriCanonicalizer uriCanonicalizer,
-            final VisitedUriRegistry visitedUriRegistry,
-            final Supplier<WebPageFetcher> fetcherFactory,
-            final WebHttpFetcher httpFetcher
+            final WebHttpFetcher httpFetcher,
+            final SeededWebPageTraversal seededTraversal
+    ) {
+        this(config, rootUri, uriCanonicalizer, httpFetcher, seededTraversal, null, null);
+    }
+
+    public SitemapSiteTraversalStrategy(
+            final WebCrawlingConfig config,
+            final URI rootUri,
+            final UriCanonicalizer uriCanonicalizer,
+            final WebHttpFetcher httpFetcher,
+            final SeededWebPageTraversal seededTraversal,
+            final UrlClassifier urlClassifier,
+            final UrlFilter urlFilter
     ) {
         this.config = Objects.requireNonNull(config, "config must not be null");
         this.rootUri = Objects.requireNonNull(rootUri, "rootUri must not be null");
         this.uriCanonicalizer = Objects.requireNonNull(uriCanonicalizer, "uriCanonicalizer must not be null");
-        this.visitedUriRegistry = Objects.requireNonNull(visitedUriRegistry, "visitedUriRegistry must not be null");
-        this.fetcherFactory = Objects.requireNonNull(fetcherFactory, "fetcherFactory must not be null");
         this.httpFetcher = Objects.requireNonNull(httpFetcher, "httpFetcher must not be null");
+        this.seededTraversal = Objects.requireNonNull(seededTraversal, "seededTraversal must not be null");
+        this.urlClassifier = urlClassifier;
+        this.urlFilter = urlFilter;
         this.sitemapParser = new SitemapParser();
         this.robotsParser = new RobotsParser(httpFetcher);
-        this.emittedPages = 0;
     }
 
     @Override
@@ -90,7 +106,21 @@ public final class SitemapSiteTraversalStrategy implements WebPageSourceStrategy
         final Set<URI> pageUris = collectPageUris(sitemapUris);
         LOGGER.debug("Collected {} unique page URI(s) from sitemaps for {}", pageUris.size(), rootUri);
 
-        fetchAndEmitPages(pageUris, consumer);
+        if (pageUris.isEmpty()) {
+            LOGGER.debug("No page URIs collected from sitemaps for {}", rootUri);
+            return;
+        }
+
+        final Set<URI> acceptedUris = classifyAndFilter(pageUris);
+        LOGGER.debug("{} page URI(s) accepted after classification and filtering for {}",
+                acceptedUris.size(), rootUri);
+
+        if (acceptedUris.isEmpty()) {
+            LOGGER.debug("No page URIs accepted after filtering for {}", rootUri);
+            return;
+        }
+
+        seededTraversal.traverse(acceptedUris, consumer);
     }
 
     private Set<URI> discoverSitemapUris() {
@@ -138,6 +168,23 @@ public final class SitemapSiteTraversalStrategy implements WebPageSourceStrategy
         }
 
         return pageUris;
+    }
+
+    private Set<URI> classifyAndFilter(final Set<URI> pageUris) {
+        if (urlClassifier == null || urlFilter == null) {
+            return pageUris;
+        }
+
+        final Set<URI> accepted = new LinkedHashSet<>();
+        for (final URI pageUri : pageUris) {
+            final ClassifiedUrl classified = urlClassifier.classify(pageUri);
+            if (urlFilter.accepts(classified)) {
+                accepted.add(pageUri);
+            } else {
+                LOGGER.debug("Filtering out URI {} classified as {}", pageUri, classified.type());
+            }
+        }
+        return accepted;
     }
 
     private void processSitemap(
@@ -196,35 +243,6 @@ public final class SitemapSiteTraversalStrategy implements WebPageSourceStrategy
         } catch (final Exception exception) {
             LOGGER.warn("Exception fetching sitemap at {}", sitemapUri, exception);
             return Optional.empty();
-        }
-    }
-
-    private void fetchAndEmitPages(final Set<URI> pageUris, final Consumer<WebPage> consumer) {
-        for (final URI pageUri : pageUris) {
-            if (emittedPages >= config.maxPages()) {
-                LOGGER.debug("Stopping page emission because maxPages={} was reached", config.maxPages());
-                return;
-            }
-
-            try {
-                if (config.delayMillisBetweenRequests() > 0) {
-                    Thread.sleep(config.delayMillisBetweenRequests());
-                }
-
-                final WebPageFetcher fetcher = fetcherFactory.get();
-                fetcher.fetch(pageUri, ignored -> {}).ifPresent(page -> {
-                    if (emittedPages < config.maxPages()) {
-                        emittedPages++;
-                        consumer.accept(page);
-                    }
-                });
-            } catch (final InterruptedException exception) {
-                Thread.currentThread().interrupt();
-                LOGGER.warn("Sitemap traversal interrupted for URI {}", pageUri, exception);
-                return;
-            } catch (final Exception exception) {
-                LOGGER.warn("Failed to fetch page for URI {}", pageUri, exception);
-            }
         }
     }
 

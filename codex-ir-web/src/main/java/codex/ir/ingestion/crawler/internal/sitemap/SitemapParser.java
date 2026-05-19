@@ -1,4 +1,4 @@
-package codex.ir.ingestion.crawler.sitemap;
+package codex.ir.ingestion.crawler.internal.sitemap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

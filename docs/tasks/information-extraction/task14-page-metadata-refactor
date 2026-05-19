@@ -1,0 +1,47 @@
+Review and refactor the new page metadata extraction implementation.
+
+Goals:
+
+1. Update PageMetadata to be a stronger immutable value object:
+   - Add a compact constructor.
+   - Validate all components with Objects.requireNonNull.
+   - Defensively copy all Map and List components using Map.copyOf and List.copyOf.
+   - Add PageMetadata.empty().
+   - Add PageMetadata.builder().
+   - Add PageMetadata.toBuilder().
+   - Keep PageMetadata as a record.
+   - Remember that Java records already provide equals, hashCode, toString, and component accessors.
+
+2. Move empty PageMetadata creation out of PageMetadataExtractors.JsoupPageMetadataExtractor and use PageMetadata.empty() instead.
+
+3. Refactor MetaTagExtractor:
+   - Replace the three public methods extractTitle, extractDescription, extractCanonicalUrl with one extract(Document) method.
+   - Return a small internal record, for example StandardMetaTags(title, description, canonicalUrl).
+
+4. Refactor HeadingExtractor:
+   - Replace extractH1 and extractH2 with one extract(Document) method.
+   - Return a small internal record, for example Headings(h1, h2).
+
+5. Consider introducing an internal abstraction for metadata contributors:
+   - Prefer something like DocumentMetadataContributor with contribute(Document, PageMetadata.Builder).
+   - Do not expose this interface from the module.
+   - Keep all extractor implementations internal.
+   - Avoid over-engineering; only introduce the abstraction if it simplifies JsoupPageMetadataExtractor.
+
+6. Clean up extractLanguage:
+   - Avoid calling doc.selectFirst("html") twice.
+   - Keep language extraction inside JsoupPageMetadataExtractor for now.
+
+7. Preserve current public API style:
+   - PageMetadata
+   - PageMetadataExtractor
+   - PageMetadataExtractors.jsoupDefault()
+
+8. Add or update tests:
+   - PageMetadata defensively copies mutable input collections.
+   - PageMetadata rejects null components.
+   - PageMetadata.empty() returns empty optionals and empty collections.
+   - toBuilder() can derive a modified copy without changing the original.
+   - Existing metadata extraction behavior remains unchanged.
+
+Run mvn clean test and report results.

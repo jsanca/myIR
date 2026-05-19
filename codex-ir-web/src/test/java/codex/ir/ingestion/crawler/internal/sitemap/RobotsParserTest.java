@@ -1,4 +1,4 @@
-package codex.ir.ingestion.crawler.sitemap;
+package codex.ir.ingestion.crawler.internal.sitemap;
 
 import codex.ir.ingestion.crawler.fetcher.WebHttpFetcher;
 import codex.ir.ingestion.crawler.fetcher.WebHttpResponse;

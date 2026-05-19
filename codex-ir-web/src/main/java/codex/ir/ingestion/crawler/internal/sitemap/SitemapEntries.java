@@ -1,4 +1,4 @@
-package codex.ir.ingestion.crawler.sitemap;
+package codex.ir.ingestion.crawler.internal.sitemap;
 
 import java.util.List;
 
