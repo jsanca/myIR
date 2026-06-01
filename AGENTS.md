@@ -40,7 +40,7 @@ Each module has the standard Maven layout (`src/main/java`, `src/test/java`). Te
 | `vector/store/` | `DocumentVectorStore` / `VectorStores` — in-memory sparse vector persistence |
 | `weight/` | `DocumentWeighter` / `Weighters` — computes per-term weights (TF-IDF) before vectorizing |
 | `concurrent/` | `Debouncer`, `VTExecutor` / `VTExecutors`, `VTConfig` — virtual-thread helpers |
-| `util/` | `TermWeightingUtils` — stateless helper |
+| `util/` | `TermWeightingUtils` — stateless helper. **Not JPMS-exported** (internal to core; inaccessible from `codex.ir.app` and `codex.ir.web`) |
 
 #### `codex-ir-web` packages (`codex.ir.*`)
 

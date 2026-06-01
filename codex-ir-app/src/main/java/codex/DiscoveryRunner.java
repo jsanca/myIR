@@ -7,6 +7,7 @@ import codex.ir.ingestion.crawler.WebPageFetchers;
 import codex.ir.ingestion.crawler.product.DiscoveryReportWriter;
 import codex.ir.ingestion.crawler.product.DiscoveryReportWriters;
 import codex.ir.ingestion.crawler.product.ProductDiscoveryCollectors;
+import codex.ir.ingestion.crawler.product.ProductDiscoveryQualityFormatter;
 import codex.ir.ingestion.crawler.product.ProductDiscoveryReport;
 
 import java.net.URI;
@@ -74,6 +75,9 @@ public final class DiscoveryRunner {
 
         final DiscoveryReportWriter writer = createWriter(parsed);
         writer.write(report);
+
+        System.out.println();
+        System.out.println(ProductDiscoveryQualityFormatter.formatSummary(report));
     }
 
     // ------------------------------------------------------------------
