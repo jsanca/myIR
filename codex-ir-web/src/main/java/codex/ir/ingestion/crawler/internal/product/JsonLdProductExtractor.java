@@ -114,10 +114,46 @@ public final class JsonLdProductExtractor {
         final String name = textValue(product, "name");
         final String sku = textValue(product, "sku");
         final String description = textValue(product, "description");
+        final String brand = extractBrand(product);
         final ProductPrice regularPrice = extractOffersPrice(product);
+        final String availability = extractOffersAvailability(product);
+        final String url = textValue(product, "url");
         final List<ProductImage> images = extractImages(product, baseUri);
 
-        return new JsonLdProductData(name, sku, description, regularPrice, images);
+        return new JsonLdProductData(name, sku, description, brand, regularPrice, availability, url, images);
+    }
+
+    private String extractBrand(final JsonNode product) {
+        final JsonNode brandNode = product.get("brand");
+        if (brandNode == null || brandNode.isNull()) {
+            return null;
+        }
+        if (brandNode.isTextual()) {
+            final String text = brandNode.asText().trim();
+            return text.isBlank() ? null : text;
+        }
+        if (brandNode.isObject()) {
+            return textValue(brandNode, "name");
+        }
+        return null;
+    }
+
+    private String extractOffersAvailability(final JsonNode product) {
+        final JsonNode offers = product.get("offers");
+        if (offers == null) {
+            return null;
+        }
+        final JsonNode offersNode = offers.isArray() && !offers.isEmpty()
+                ? offers.get(0) : offers.isObject() ? offers : null;
+        if (offersNode == null) {
+            return null;
+        }
+        final String avail = textValue(offersNode, "availability");
+        if (avail == null) {
+            return null;
+        }
+        final int slash = avail.lastIndexOf('/');
+        return slash >= 0 ? avail.substring(slash + 1) : avail;
     }
 
     private ProductPrice extractOffersPrice(final JsonNode product) {
@@ -140,8 +176,9 @@ public final class JsonLdProductExtractor {
             return null;
         }
 
+        final String currency = textValue(offersNode, "priceCurrency");
         try {
-            return new ProductPrice(new BigDecimal(priceStr));
+            return new ProductPrice(new BigDecimal(priceStr), currency);
         } catch (final NumberFormatException ignored) {
             return null;
         }

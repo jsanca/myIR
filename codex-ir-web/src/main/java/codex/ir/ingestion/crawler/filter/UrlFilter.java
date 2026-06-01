@@ -1,4 +1,7 @@
-package codex.ir.ingestion.crawler.classifier;
+package codex.ir.ingestion.crawler.filter;
+
+import codex.ir.ingestion.crawler.classifier.ClassifiedUrl;
+import codex.ir.ingestion.crawler.classifier.UrlClassifier;
 
 /**
  * Decides whether a classified URL should be accepted for further

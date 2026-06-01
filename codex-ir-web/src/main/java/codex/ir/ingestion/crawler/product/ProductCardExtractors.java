@@ -1,8 +1,11 @@
 package codex.ir.ingestion.crawler.product;
 
 import codex.ir.ingestion.WebPage;
+import codex.ir.ingestion.crawler.internal.product.CardClassifier;
+import codex.ir.ingestion.crawler.internal.product.ExtractedCardType;
 import codex.ir.ingestion.crawler.internal.product.ImageUrlResolver;
 import codex.ir.ingestion.crawler.internal.product.ProductPriceParser;
+import codex.ir.ingestion.crawler.internal.text.HtmlTextDecoder;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -12,9 +15,11 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Factory for {@link ProductCardExtractor} implementations.
@@ -24,6 +29,17 @@ public final class ProductCardExtractors {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProductCardExtractors.class);
 
     private ProductCardExtractors() {
+    }
+
+    /**
+     * Returns a general-purpose Jsoup-based card extractor that detects repeated
+     * product-card-like containers by class name heuristics.
+     */
+    public static ProductCardExtractor jsoupDefault() {
+        return new JsoupGenericProductCardExtractor(
+                new ProductPriceParser(),
+                new ImageUrlResolver()
+        );
     }
 
     /**
@@ -79,13 +95,20 @@ public final class ProductCardExtractors {
         }
 
         private Optional<ProductCard> extractCard(final Element card, final URI baseUri) {
+            final String rawHref = extractRawHref(card);
+
             final URI productUrl = extractUrl(card, baseUri);
             if (productUrl == null) {
                 return Optional.empty();
             }
 
-            final String name = extractName(card);
+            final String name = HtmlTextDecoder.decode(extractName(card));
             if (name == null || name.isBlank()) {
+                return Optional.empty();
+            }
+
+            final ExtractedCardType type = CardClassifier.classify(productUrl, name, rawHref);
+            if (type != ExtractedCardType.PRODUCT) {
                 return Optional.empty();
             }
 
@@ -95,6 +118,12 @@ public final class ProductCardExtractors {
 
             return Optional.of(new ProductCard(
                     productUrl, name, regularPrice, salePrice, thumbnail));
+        }
+
+        private String extractRawHref(final Element card) {
+            final Element link = selectFirst(card, "a.woocommerce-LoopProduct-link, "
+                    + "a.woocommerce-loop-product__link, a[href]");
+            return link != null ? link.attr("href") : null;
         }
 
         private URI extractUrl(final Element card, final URI baseUri) {
@@ -168,13 +197,181 @@ public final class ProductCardExtractors {
             if (imageUrl == null) {
                 return Optional.empty();
             }
-            final String alt = Optional.ofNullable(img.attr("alt")).orElse("");
+            final String alt = HtmlTextDecoder.decode(Optional.ofNullable(img.attr("alt")).orElse(""));
             return Optional.of(new ProductImage(imageUrl, alt, 0));
         }
 
         private static Element selectFirst(final Element context, final String cssQuery) {
             final Elements elements = context.select(cssQuery);
             return elements.isEmpty() ? null : elements.first();
+        }
+    }
+
+    private static final class JsoupGenericProductCardExtractor implements ProductCardExtractor {
+
+        private static final String CARD_SELECTOR =
+                "li.product, .product.type-product, "
+                        + "[class*=product-card], [class*=product-item], [class*=product_card], [class*=product_item], "
+                        + "[class*=item-card], .products > li, [class*=collection] > li, [class*=shop] > li";
+
+        private final ProductPriceParser priceParser;
+        private final ImageUrlResolver urlResolver;
+
+        private JsoupGenericProductCardExtractor(
+                final ProductPriceParser priceParser,
+                final ImageUrlResolver urlResolver
+        ) {
+            this.priceParser = Objects.requireNonNull(priceParser);
+            this.urlResolver = Objects.requireNonNull(urlResolver);
+        }
+
+        @Override
+        public List<ProductCard> extract(final WebPage page) {
+            Objects.requireNonNull(page, "page must not be null");
+            final String html = page.rawHtml();
+            if (html == null || html.isBlank()) {
+                return List.of();
+            }
+
+            final Document doc;
+            try {
+                doc = Jsoup.parse(html, page.url().toString());
+            } catch (final Exception exception) {
+                LOGGER.debug("Failed to parse HTML for {}", page.url(), exception);
+                return List.of();
+            }
+
+            final Elements cards = doc.select(CARD_SELECTOR);
+            if (cards.isEmpty()) {
+                return List.of();
+            }
+
+            final List<ProductCard> result = new ArrayList<>();
+            final Set<String> seen = new HashSet<>();
+            for (final Element card : cards) {
+                extractCard(card, page.url(), seen).ifPresent(result::add);
+            }
+            return result;
+        }
+
+        private Optional<ProductCard> extractCard(
+                final Element card, final URI baseUri, final Set<String> seen) {
+            final String rawHref = extractRawHref(card);
+
+            final URI productUrl = extractUrl(card, baseUri);
+            if (productUrl == null) {
+                return Optional.empty();
+            }
+            if (!seen.add(productUrl.toString())) {
+                return Optional.empty();
+            }
+
+            final String name = HtmlTextDecoder.decode(extractName(card));
+            if (name == null || name.isBlank()) {
+                return Optional.empty();
+            }
+
+            final ExtractedCardType type = CardClassifier.classify(productUrl, name, rawHref);
+            if (type != ExtractedCardType.PRODUCT) {
+                return Optional.empty();
+            }
+
+            final Optional<ProductPrice> regularPrice = extractPrice(card);
+            final Optional<ProductImage> thumbnail = extractThumbnail(card, baseUri);
+
+            return Optional.of(new ProductCard(
+                    productUrl, name, regularPrice, Optional.empty(), thumbnail));
+        }
+
+        private String extractRawHref(final Element card) {
+            if ("a".equalsIgnoreCase(card.tagName())) {
+                return card.attr("href");
+            }
+            final Element first = card.selectFirst("a[href]");
+            return first != null ? first.attr("href") : null;
+        }
+
+        private URI extractUrl(final Element card, final URI baseUri) {
+            if ("a".equalsIgnoreCase(card.tagName())) {
+                final String href = card.absUrl("href");
+                if (!href.isBlank()) {
+                    return resolveUri(href, baseUri);
+                }
+            }
+            for (final Element link : card.select("a[href]")) {
+                final String href = link.absUrl("href");
+                if (!href.isBlank() && looksLikeProductUrl(href)) {
+                    return resolveUri(href, baseUri);
+                }
+            }
+            final Element first = card.selectFirst("a[href]");
+            if (first != null) {
+                final String href = first.absUrl("href");
+                if (!href.isBlank()) {
+                    return resolveUri(href, baseUri);
+                }
+            }
+            return null;
+        }
+
+        private boolean looksLikeProductUrl(final String href) {
+            final String lower = href.toLowerCase();
+            return lower.contains("/product/") || lower.contains("/shop/")
+                    || lower.contains("/item/") || lower.contains("/p/");
+        }
+
+        private URI resolveUri(final String href, final URI baseUri) {
+            try {
+                return baseUri.resolve(href);
+            } catch (final Exception exception) {
+                LOGGER.debug("Could not resolve product URL: {}", href, exception);
+                return null;
+            }
+        }
+
+        private String extractName(final Element card) {
+            final Element heading = card.selectFirst("h2, h3, h4");
+            if (heading != null) {
+                final String text = heading.text().trim();
+                if (!text.isBlank()) {
+                    return text;
+                }
+            }
+            for (final Element link : card.select("a[href]")) {
+                final String text = link.ownText().trim();
+                if (!text.isBlank()) {
+                    return text;
+                }
+            }
+            final Element img = card.selectFirst("img[alt]");
+            if (img != null) {
+                final String alt = img.attr("alt").trim();
+                if (!alt.isBlank()) {
+                    return alt;
+                }
+            }
+            return null;
+        }
+
+        private Optional<ProductPrice> extractPrice(final Element card) {
+            final Element priceEl = card.selectFirst(".price, [class*=price]");
+            if (priceEl == null) {
+                return Optional.empty();
+            }
+            return priceParser.parse(priceEl);
+        }
+
+        private Optional<ProductImage> extractThumbnail(final Element card, final URI baseUri) {
+            final Element img = card.selectFirst("img");
+            if (img == null) {
+                return Optional.empty();
+            }
+            final URI imageUrl = urlResolver.resolve(img, baseUri);
+            if (imageUrl == null) {
+                return Optional.empty();
+            }
+            final String alt = HtmlTextDecoder.decode(img.attr("alt"));
+            return Optional.of(new ProductImage(imageUrl, alt == null ? "" : alt, 0));
         }
     }
 }

@@ -11,5 +11,7 @@ module codex.ir.web {
     exports codex.ir.ingestion.crawler;
     exports codex.ir.ingestion.crawler.classifier;
     exports codex.ir.ingestion.crawler.metadata;
+    exports codex.ir.ingestion.crawler.filter;
+    exports codex.ir.ingestion.crawler.product;
 
 }

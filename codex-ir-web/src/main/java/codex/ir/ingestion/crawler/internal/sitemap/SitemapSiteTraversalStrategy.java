@@ -7,7 +7,7 @@ import codex.ir.ingestion.crawler.internal.traversal.SeededWebPageTraversal;
 import codex.ir.ingestion.crawler.WebPageSourceStrategy;
 import codex.ir.ingestion.crawler.classifier.ClassifiedUrl;
 import codex.ir.ingestion.crawler.classifier.UrlClassifier;
-import codex.ir.ingestion.crawler.classifier.UrlFilter;
+import codex.ir.ingestion.crawler.filter.UrlFilter;
 import codex.ir.ingestion.crawler.fetcher.WebHttpFetcher;
 import codex.ir.ingestion.crawler.fetcher.WebHttpResponse;
 import codex.ir.web.util.HttpUtil;

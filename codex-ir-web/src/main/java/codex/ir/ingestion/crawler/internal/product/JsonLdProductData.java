@@ -12,13 +12,17 @@ public record JsonLdProductData(
         String name,
         String sku,
         String description,
+        String brand,
         ProductPrice regularPrice,
+        String availability,
+        String url,
         List<ProductImage> images
 ) {
-    static final JsonLdProductData EMPTY = new JsonLdProductData(null, null, null, null, List.of());
+    static final JsonLdProductData EMPTY = new JsonLdProductData(
+            null, null, null, null, null, null, null, List.of());
 
     boolean hasAnyField() {
-        return name != null || sku != null || description != null
+        return name != null || sku != null || description != null || brand != null
                 || regularPrice != null || !images.isEmpty();
     }
 }

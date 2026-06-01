@@ -390,6 +390,74 @@ class ProductDetailExtractorsTest {
                 "CSS extraction should still work when JSON-LD is malformed");
     }
 
+    @Test
+    void shouldDecodeDoubleEncodedAmpersandInProductName() {
+        final String html = """
+                <html><body>
+                <h1 class="product_title">Menú S&amp;amp;J</h1>
+                </body></html>""";
+
+        final WebPage page = page("https://example.com/product/test/", html);
+        final Optional<ProductDetail> result = extractor.extract(page);
+
+        assertTrue(result.isPresent());
+        assertEquals("Menú S&J", result.get().name());
+    }
+
+    @Test
+    void shouldDecodeDoubleEncodedGreaterThanInDescription() {
+        final String html = """
+                <html><body>
+                <h1 class="product_title">Test Product</h1>
+                <div class="woocommerce-product-details__short-description">
+                    Corporativo &amp;gt; Ejecutivo
+                </div>
+                </body></html>""";
+
+        final WebPage page = page("https://example.com/product/test/", html);
+        final Optional<ProductDetail> result = extractor.extract(page);
+
+        assertTrue(result.isPresent());
+        assertTrue(result.get().shortDescription().isPresent());
+        assertEquals("Corporativo > Ejecutivo", result.get().shortDescription().get());
+    }
+
+    @Test
+    void shouldDecodeDoubleEncodedAmpersandInShortDescription() {
+        final String html = """
+                <html><body>
+                <h1 class="product_title">Test Product</h1>
+                <div class="woocommerce-product-details__short-description">
+                    Bolsos &amp;amp; Carteras de lujo
+                </div>
+                </body></html>""";
+
+        final WebPage page = page("https://example.com/product/test/", html);
+        final Optional<ProductDetail> result = extractor.extract(page);
+
+        assertTrue(result.isPresent());
+        assertTrue(result.get().shortDescription().isPresent());
+        assertEquals("Bolsos & Carteras de lujo", result.get().shortDescription().get());
+    }
+
+    @Test
+    void shouldDecodeEntityInImageAltText() {
+        final String html = """
+                <html><body>
+                <h1 class="product_title">Test Product</h1>
+                <figure class="woocommerce-product-gallery__wrapper">
+                    <img src="shoe.jpg" alt="Zapatos &amp;amp; Botas" />
+                </figure>
+                </body></html>""";
+
+        final WebPage page = page("https://example.com/product/test/", html);
+        final Optional<ProductDetail> result = extractor.extract(page);
+
+        assertTrue(result.isPresent());
+        assertFalse(result.get().images().isEmpty());
+        assertEquals("Zapatos & Botas", result.get().images().get(0).altText());
+    }
+
     private static WebPage page(final String url, final String html) {
         return new WebPage(URI.create(url), html, "", "", 200, "text/html", NOW, Map.of());
     }

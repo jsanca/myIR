@@ -255,6 +255,161 @@ class ProductCardExtractorsTest {
         assertTrue(extractor.extract(page).isEmpty());
     }
 
+    @Test
+    void shouldDecodeDoubleEncodedEntityInCardName() {
+        final String html = """
+                <html><body>
+                <ul class="products">
+                    <li class="product">
+                        <a href="/product/carteras/" class="woocommerce-LoopProduct-link">
+                            <h2 class="woocommerce-loop-product__title">Bolso &amp;amp; Carteras</h2>
+                        </a>
+                        <span class="price"><span class="woocommerce-Price-amount">$20.00</span></span>
+                    </li>
+                </ul>
+                </body></html>""";
+
+        final List<ProductCard> cards = extractor.extract(page("https://example.com/shop/", html));
+
+        assertEquals(1, cards.size());
+        assertEquals("Bolso & Carteras", cards.get(0).name());
+    }
+
+    @Test
+    void shouldDecodeEntityInCardThumbnailAlt() {
+        final String html = """
+                <html><body>
+                <ul class="products">
+                    <li class="product">
+                        <a href="/product/shoes/" class="woocommerce-LoopProduct-link">
+                            <img src="shoe.jpg" alt="Zapatos &amp;amp; Botas" />
+                            <h2 class="woocommerce-loop-product__title">Shoes</h2>
+                        </a>
+                        <span class="price"><span class="woocommerce-Price-amount">$30.00</span></span>
+                    </li>
+                </ul>
+                </body></html>""";
+
+        final List<ProductCard> cards = extractor.extract(page("https://example.com/shop/", html));
+
+        assertEquals(1, cards.size());
+        assertTrue(cards.get(0).thumbnail().isPresent());
+        assertEquals("Zapatos & Botas", cards.get(0).thumbnail().get().altText());
+    }
+
+    @Test
+    void shouldSkipNavigationCardWithHashHref() {
+        final String html = """
+                <html><body>
+                <ul class="products">
+                    <li class="product">
+                        <a href="#categories"><h2>Categorías</h2></a>
+                    </li>
+                    <li class="product">
+                        <a href="/product/real-item/"><h2>Real Product</h2></a>
+                        <span class="price"><span class="woocommerce-Price-amount">$10.00</span></span>
+                    </li>
+                </ul>
+                </body></html>""";
+
+        final List<ProductCard> cards = extractor.extract(page("https://example.com/shop/", html));
+
+        assertEquals(1, cards.size());
+        assertEquals("Real Product", cards.get(0).name());
+    }
+
+    @Test
+    void shouldSkipNavigationCardWithVolverLabel() {
+        final String html = """
+                <html><body>
+                <ul class="products">
+                    <li class="product">
+                        <a href="/shop/"><h2>Volver</h2></a>
+                    </li>
+                    <li class="product">
+                        <a href="/product/real-item/"><h2>Real Product</h2></a>
+                        <span class="price"><span class="woocommerce-Price-amount">$10.00</span></span>
+                    </li>
+                </ul>
+                </body></html>""";
+
+        final List<ProductCard> cards = extractor.extract(page("https://example.com/shop/", html));
+
+        assertEquals(1, cards.size());
+        assertEquals("Real Product", cards.get(0).name());
+    }
+
+    @Test
+    void shouldSkipCategoryCard() {
+        final String html = """
+                <html><body>
+                <ul class="products">
+                    <li class="product">
+                        <a href="/product-category/bags/"><h2>Bags</h2></a>
+                    </li>
+                    <li class="product">
+                        <a href="/product/real-item/"><h2>Real Product</h2></a>
+                        <span class="price"><span class="woocommerce-Price-amount">$10.00</span></span>
+                    </li>
+                </ul>
+                </body></html>""";
+
+        final List<ProductCard> cards = extractor.extract(page("https://example.com/shop/", html));
+
+        assertEquals(1, cards.size());
+        assertEquals("Real Product", cards.get(0).name());
+    }
+
+    @Test
+    void shouldStillExtractProductCardsInMixedList() {
+        final String html = """
+                <html><body>
+                <ul class="products">
+                    <li class="product">
+                        <a href="/product-category/bags/"><h2>Bags</h2></a>
+                    </li>
+                    <li class="product">
+                        <a href="/product/alpha/"><h2>Alpha</h2></a>
+                        <span class="price"><span class="woocommerce-Price-amount">$10.00</span></span>
+                    </li>
+                    <li class="product">
+                        <a href="/product/beta/"><h2>Beta</h2></a>
+                        <span class="price"><span class="woocommerce-Price-amount">$20.00</span></span>
+                    </li>
+                    <li class="product">
+                        <a href="/shop/"><h2>Volver</h2></a>
+                    </li>
+                </ul>
+                </body></html>""";
+
+        final List<ProductCard> cards = extractor.extract(page("https://example.com/shop/", html));
+
+        assertEquals(2, cards.size());
+        assertEquals("Alpha", cards.get(0).name());
+        assertEquals("Beta", cards.get(1).name());
+    }
+
+    @Test
+    void shouldDeduplicateProductsStill() {
+        final String html = """
+                <html><body>
+                <ul class="products">
+                    <li class="product">
+                        <a href="/product/unique/"><h2>Unique</h2></a>
+                        <span class="price"><span class="woocommerce-Price-amount">$10.00</span></span>
+                    </li>
+                    <li class="product">
+                        <a href="/product/unique/?ref=cat"><h2>Unique</h2></a>
+                        <span class="price"><span class="woocommerce-Price-amount">$10.00</span></span>
+                    </li>
+                </ul>
+                </body></html>""";
+
+        final List<ProductCard> cards = extractor.extract(page("https://example.com/shop/", html));
+
+        assertEquals(2, cards.size(), "Same product with different query params are still separate cards");
+    }
+
     private static WebPage page(final String url, final String html) {
         return new WebPage(URI.create(url), html, "", "", 200, "text/html", NOW, Map.of());
     }

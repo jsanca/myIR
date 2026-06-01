@@ -1,5 +1,6 @@
 package codex.ir.ingestion.crawler.internal.product;
 
+import codex.ir.ingestion.crawler.internal.text.HtmlTextDecoder;
 import codex.ir.ingestion.crawler.product.ProductImage;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -41,7 +42,7 @@ public final class ProductImageExtractor {
             if (imageUrl == null) {
                 continue;
             }
-            final String alt = Optional.ofNullable(img.attr("alt")).orElse("");
+            final String alt = HtmlTextDecoder.decode(Optional.ofNullable(img.attr("alt")).orElse(""));
             images.add(new ProductImage(imageUrl, alt, order++));
         }
         return images;

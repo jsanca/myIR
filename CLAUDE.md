@@ -44,32 +44,54 @@ Each module has the standard Maven layout (`src/main/java`, `src/test/java`). Te
 
 #### `codex-ir-web` packages (`codex.ir.*`)
 
+Exported packages (accessible to `codex.ir.app` and other dependents):
+
 | Package | Responsibility |
 |---|---|
 | `ingestion/` | `DocumentSource`, `DocumentMapper`, `DocumentIngestionService`, `Ingestors` |
-| `ingestion/crawler/` | Public crawler API: `WebPageFetcher` (Playwright), fetcher registries, `WebCrawlerRuntime` |
-| `ingestion/crawler/fetcher/` | `WebHttpFetcher` / `WebHttpFetchers` — lightweight HTTP-only fetcher |
-| `ingestion/crawler/classifier/` | `UrlClassifier`, `PageClassifier`, `UrlFilter` — classify and filter URLs by type |
-| `ingestion/crawler/product/` | Public product API: `ProductCard`, `ProductDetail`, `ProductCardExtractor`, `ProductDetailExtractor` |
+| `ingestion/crawler/` | Public crawler API: `WebPageFetcher`, `WebPageSourceStrategy`, fetcher registries, `WebCrawlerRuntime` |
+| `ingestion/crawler/classifier/` | `UrlClassifier`, `PageClassifier` — classify URLs and pages; produces `ClassifiedUrl`, `PageClassification`, `UrlType` |
+| `ingestion/crawler/filter/` | `UrlFilter` / `UrlFilters` — compose URL filtering predicates |
+| `ingestion/crawler/metadata/` | `PageMetadataExtractor` / `PageMetadataExtractors` — extracts `PageMetadata` (title, OG tags, headings, JSON-LD) from a `WebPage` |
+| `ingestion/crawler/product/` | `ProductDiscoverer` / `ProductDiscoverers`, `ProductDetailExtractor`, `ProductCardExtractor` and their result types (`ProductCard`, `ProductDetail`, `ProductDiscoveryResult`, `ProductPrice`, `ProductImage`) |
+| `canonicalizer/` | URI normalization pipeline; `UriCanonicalizer` / `UriCanonicalizers` |
+
+Non-exported packages (used only within `codex.ir.web`):
+
+| Package | Responsibility |
+|---|---|
+| `ingestion/crawler/fetcher/` | `WebHttpFetcher` / `WebHttpFetchers` — lightweight HTTP-only fetcher; `WebHttpResponse` |
+| `web/util/` | `HttpUtil`, `UriUtil` — stateless HTTP/URI helpers |
+| `ingestion/crawler/internal/classifier/` | `JsoupGenericPageClassifier`, `WordPressWooCommercePageClassifier`, `HtmlSignals` — backing implementations for `PageClassifiers` |
 | `ingestion/crawler/internal/sitemap/` | `SitemapParser`, `RobotsParser`, `SitemapSiteTraversalStrategy` — sitemap-driven traversal |
 | `ingestion/crawler/internal/traversal/` | `SiteTraversalStrategy`, `SeededWebPageTraversal` — traversal abstractions |
 | `ingestion/crawler/internal/product/` | `JsonLdProductExtractor`, `ProductPriceParser`, image resolvers — internal extraction logic |
-| `canonicalizer/` | URI normalization pipeline; `UriCanonicalizer` / `UriCanonicalizers` |
-| `web/util/` | `HttpUtil`, `UriUtil` — stateless HTTP/URI helpers |
+| `ingestion/crawler/internal/metadata/` | `DocumentMetadataContributor`, `HeadingExtractor`, `MetaTagExtractor`, `OpenGraphExtractor`, `TwitterCardExtractor`, `RobotsMetaExtractor`, `JsonLdBlockExtractor` — contributors wired by `PageMetadataExtractors` |
 
 ### JPMS module graph
 
-`codex.ir.app` → `codex.ir.web` → `codex.ir.core`. Internal implementation packages (e.g. `crawler/internal/`) are not exported by `module-info.java` and are inaccessible to dependents.
+`codex.ir.app` → `codex.ir.web` → `codex.ir.core`. The `codex.ir.web` module exports seven packages (see "Exported packages" above). Internal packages — `crawler/internal/`, `crawler/fetcher/`, and `web/util/` — are inaccessible to `codex.ir.app` regardless of their directory location.
+
+### Intended module direction
+
+The codebase is moving toward a cleaner four-area split. New work should respect these boundaries even while everything lives inside `codex.ir.web`:
+
+| Intended future module | Current location | Responsibility |
+|---|---|---|
+| `codex.ir.core` | `codex-ir-core` | Tokenization, indexing, ranking, corpus, search |
+| `codex.ir.ingestion.web` | `codex-ir-web` — crawler/ingestion packages | Fetch, URL classification, crawling, WebPage, page metadata |
+| `codex.ir.ingestion.extraction` | `codex-ir-web` — product packages | ProductDiscoverer, JSON-LD, OpenGraph, HTML product heuristics |
+| `codex.ir.export` | _(not yet created)_ | CSV/JSON export, dotCMS import candidates |
 
 ### Interface + Factory pattern
 
 Every domain concept follows: `Xxx` interface + `Xxxes` static factory class. Implementations are `private static final` inner classes of the factory. The concrete types must never leak into public APIs — callers use the interface type exclusively.
 
-Complete list — **core:** `Corpus`/`Corpora`, `Tokenizer`/`Tokenizers`, `Normalizer`/`Normalizers`, `Ranker`/`Rankers`, `Indexer`/`Indexers`, `Searcher`/`Searchers`, `Vectorizer`/`Vectorizers`, `Vocabulary`/`Vocabularies`, `Similarity`/`Similarities`, `DocumentVectorStore`/`VectorStores`, `DocumentWeighter`/`Weighters`, `VTExecutor`/`VTExecutors`, `InvertedIndex`/`InvertedIndexes`. **web:** `UriCanonicalizer`/`UriCanonicalizers`, `WebHttpFetcher`/`WebHttpFetchers`, `WebPageFetcher`/`WebPageFetchers`, `DocumentSource`/`Sources`, `DocumentMapper`/`Mappers`, `UrlClassifier`/`UrlClassifiers`, `UrlFilter`/`UrlFilters`, `PageClassifier`/`PageClassifiers`, `ProductCardExtractor`/`ProductCardExtractors`, `ProductDetailExtractor`/`ProductDetailExtractors`.
+Complete list — **core:** `Corpus`/`Corpora`, `Tokenizer`/`Tokenizers`, `Normalizer`/`Normalizers`, `Ranker`/`Rankers`, `Indexer`/`Indexers`, `Searcher`/`Searchers`, `Vectorizer`/`Vectorizers`, `Vocabulary`/`Vocabularies`, `Similarity`/`Similarities`, `DocumentVectorStore`/`VectorStores`, `DocumentWeighter`/`Weighters`, `VTExecutor`/`VTExecutors`, `InvertedIndex`/`InvertedIndexes`. **web:** `UriCanonicalizer`/`UriCanonicalizers`, `WebHttpFetcher`/`WebHttpFetchers`, `WebPageFetcher`/`WebPageFetchers`, `WebPageSourceStrategy`/`WebPageSourceStrategies`, `VisitedUriRegistry`/`VisitedUriRegistries`, `DocumentSource`/`Sources`, `DocumentMapper`/`Mappers`, `UrlClassifier`/`UrlClassifiers`, `UrlFilter`/`UrlFilters`, `PageClassifier`/`PageClassifiers`, `PageMetadataExtractor`/`PageMetadataExtractors`, `ProductCardExtractor`/`ProductCardExtractors`, `ProductDetailExtractor`/`ProductDetailExtractors`, `ProductDiscoverer`/`ProductDiscoverers`.
 
 ### Domain types
 
-Core data types use Java **records**: `Document`, `Posting`, `SearchResult`, `SparseDocumentVector`, `CorpusStatistics`, `WebPage`, `WebCrawlingConfig`, `VTConfig`, `WebHttpResponse`, `SimilarityResult`, `SimilarityMatch`, `SparseVectorMetadata`.
+Core data types use Java **records**: `Document`, `Posting`, `SearchResult`, `SparseDocumentVector`, `CorpusStatistics`, `WebPage`, `WebCrawlingConfig`, `VTConfig`, `WebHttpResponse`, `SimilarityResult`, `SimilarityMatch`, `SparseVectorMetadata`, `PageMetadata`, `ClassifiedUrl`, `PageClassification`, `ProductCard`, `ProductDetail`, `ProductDiscoveryResult`, `ProductPrice`, `ProductImage`.
 
 ### Document and fields
 

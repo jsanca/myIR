@@ -24,6 +24,9 @@ public enum UrlType {
     /** Blog post (e.g. /blog/2024/01/15/some-post). */
     BLOG_POST,
 
+    /** Article, news, or blog content detected via HTML signals (JSON-LD, og:type). */
+    ARTICLE,
+
     /** Search results page. */
     SEARCH,
 

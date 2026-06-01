@@ -1,4 +1,6 @@
-package codex.ir.ingestion.crawler.classifier;
+package codex.ir.ingestion.crawler.filter;
+
+import codex.ir.ingestion.crawler.classifier.UrlType;
 
 import java.util.Arrays;
 import java.util.EnumSet;

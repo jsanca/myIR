@@ -1,5 +1,7 @@
 package codex.ir.ingestion.crawler.classifier;
 
+import codex.ir.ingestion.crawler.filter.UrlFilter;
+import codex.ir.ingestion.crawler.filter.UrlFilters;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
