@@ -1,4 +1,4 @@
-package codex;
+package codex.scraper;
 
 import codex.ir.*;
 import codex.ir.canonicalizer.UriCanonicalizer;

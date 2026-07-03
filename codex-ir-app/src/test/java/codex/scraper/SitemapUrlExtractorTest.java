@@ -1,4 +1,4 @@
-package codex;
+package codex.scraper;
 
 import org.junit.jupiter.api.Test;
 

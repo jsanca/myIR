@@ -1,4 +1,4 @@
-package codex;
+package codex.scraper;
 
 /**
  * Output destination for the product discovery report.

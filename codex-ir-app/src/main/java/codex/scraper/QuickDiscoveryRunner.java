@@ -1,4 +1,4 @@
-package codex;
+package codex.scraper;
 
 /**
  * Hardcoded-entry-point: runs {@link DiscoveryRunner} with parameters

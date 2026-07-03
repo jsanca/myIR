@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Compile:** `mvn compile`
 - **All tests:** `mvn test`
-- **Single test:** `mvn test -Dtest=RankersTest`
+- **Single test (module-scoped):** `mvn test -pl codex-ir-core -Dtest=RankersTest` — always pass `-pl <module>` when running a single test; without it Maven scans every module in order and fails with "no tests matching" as soon as it hits a module that doesn't contain the class.
 - **Full verification:** `mvn compile && mvn test-compile && mvn test`
 - **Requires Java 25.** Maven is pinned to source=25 target=25 in `pom.xml`. No other JDK version will work.
 - **Playwright prerequisite:** `npx playwright install` must be run once before any crawler demo or test that touches `WebPageFetcher`. Without browser binaries, the Playwright dependency will fail at runtime.
@@ -21,7 +21,7 @@ Multi-module Maven project (`pom.xml` at root). Three modules:
 |---|---|---|
 | `codex-ir-core` | `codex.ir.core` | Core IR engine — indexing, search, ranking, vectors |
 | `codex-ir-web` | `codex.ir.web` | Web crawling, ingestion, canonicalization, product extraction |
-| `codex-ir-app` | `codex.ir.app` | Entry point only (`codex/Main.java`); depends on both core and web |
+| `codex-ir-app` | `codex.ir.app` | Entry point only (`codex/scraper/`); depends on both core and web |
 
 Each module has the standard Maven layout (`src/main/java`, `src/test/java`). Tests mirror the source package structure.
 
@@ -198,4 +198,71 @@ Key rules:
 
 ## Reporting
 
-After each task, report: files changed, tests run, and any architectural questions discovered.
+After each task, the agent must produce a structured engineering report. The report must be added to the appropriate `ENGINEERING_LOG.md` when the task belongs to a specific app or subsystem.
+
+For the site exporter app, use:
+
+```text
+docs/apps/site-exporter/ENGINEERING_LOG.md
+```
+
+Each task report must include the following sections:
+
+```markdown
+## Task N — Task Title
+
+### Summary
+Briefly explain what was done and why.
+
+### Scope
+State what was intentionally included and what was intentionally excluded.
+
+### Deliverables
+List the concrete outputs produced by the task.
+
+### Changed Files
+List files created, moved, renamed, or modified.
+
+### Validation
+Document commands run, manual checks performed, generated artifacts inspected, or reasons why validation was not possible.
+
+### Tests
+List tests added, updated, removed, or executed. If no tests were added, explain why.
+
+### Engineering Notes
+Explain implementation details that future maintainers should know.
+
+### Decisions
+Record small design decisions made during the task.
+
+### Tradeoffs
+Describe alternatives considered and why the chosen approach was selected.
+
+### Risks
+Call out correctness, performance, security, legal, architectural, or maintenance risks.
+
+### Known Limitations
+State what still does not work or is intentionally incomplete.
+
+### Follow-ups
+List deferred work that should be tracked later.
+
+### Next Step
+Recommend the next smallest coherent task.
+```
+
+The final response after each task must summarize the same information. A task is not considered complete unless validation and tests are explicitly reported.
+
+If validation could not be run, the agent must say so directly and explain the reason.
+
+Agents must not report vague completion statements such as “done”, “implemented”, or “all good” without evidence.
+
+
+## Architecture Discipline
+
+Application-specific code must not leak into reusable core modules.
+
+- `codex-ir-core` must remain domain-agnostic.
+- `codex-ir-web` may contain reusable crawling, fetching, robots, sitemap, URI, and web traversal primitives.
+- Concrete applications such as SYJ scraping or site exporting must live under `codex-ir-app`.
+- New dependencies such as PDF or ePub renderers must be placed behind ports/interfaces.

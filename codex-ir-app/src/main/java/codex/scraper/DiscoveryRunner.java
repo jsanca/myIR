@@ -1,4 +1,4 @@
-package codex;
+package codex.scraper;
 
 import codex.ir.ingestion.WebCrawlingConfig;
 import codex.ir.ingestion.WebPage;
