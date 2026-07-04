@@ -11,8 +11,8 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Objects;
 
-/** Serializes a {@link MirrorManifest} to a JSON file using Jackson object binding. */
-final class ManifestWriter {
+/** Serializes an {@link AssetManifest} to a JSON file using Jackson object binding. */
+final class AssetManifestWriter {
 
     private static final ObjectMapper MAPPER = createMapper();
 
@@ -28,14 +28,7 @@ final class ManifestWriter {
         return new ObjectMapper().registerModule(module);
     }
 
-    /**
-     * Writes {@code manifest} as pretty-printed JSON to {@code destination}.
-     *
-     * @param manifest    the manifest to serialize; must not be {@code null}
-     * @param destination the file to write; parent directory must exist
-     * @throws IOException if the file cannot be written
-     */
-    public void write(final MirrorManifest manifest, final Path destination) throws IOException {
+    void write(final AssetManifest manifest, final Path destination) throws IOException {
         Objects.requireNonNull(manifest, "manifest");
         Objects.requireNonNull(destination, "destination");
         MAPPER.writerWithDefaultPrettyPrinter().writeValue(destination.toFile(), manifest);

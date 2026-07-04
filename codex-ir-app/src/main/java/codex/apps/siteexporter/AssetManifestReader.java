@@ -12,14 +12,8 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Objects;
 
-/**
- * Deserializes a {@link MirrorManifest} from a JSON file using Jackson object binding.
- *
- * <p>Derived manifest counts ({@code documentCount}, {@code successfulCount}, etc.) are
- * recomputed from the {@code pages} array by {@link MirrorManifest.Builder#build()};
- * the stored values in JSON are intentionally ignored.</p>
- */
-final class ManifestReader {
+/** Deserializes an {@link AssetManifest} from a JSON file using Jackson object binding. */
+final class AssetManifestReader {
 
     private static final ObjectMapper MAPPER = createMapper();
 
@@ -27,8 +21,8 @@ final class ManifestReader {
         final SimpleModule module = new SimpleModule()
                 .addDeserializer(Instant.class, new JsonDeserializer<>() {
                     @Override
-                    public Instant deserialize(final JsonParser p,
-                            final DeserializationContext ctx) throws IOException {
+                    public Instant deserialize(final JsonParser p, final DeserializationContext ctx)
+                            throws IOException {
                         return Instant.parse(p.getText());
                     }
                 });
@@ -37,15 +31,8 @@ final class ManifestReader {
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
-    /**
-     * Reads and deserializes a manifest from {@code source}.
-     *
-     * @param source path to the manifest JSON file; must exist and be readable
-     * @return the deserialized manifest with counts derived from the pages list
-     * @throws IOException if the file cannot be read or is not valid manifest JSON
-     */
-    public MirrorManifest read(final Path source) throws IOException {
+    AssetManifest read(final Path source) throws IOException {
         Objects.requireNonNull(source, "source");
-        return MAPPER.readValue(source.toFile(), MirrorManifest.class);
+        return MAPPER.readValue(source.toFile(), AssetManifest.class);
     }
 }
