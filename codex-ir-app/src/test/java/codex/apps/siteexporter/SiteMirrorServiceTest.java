@@ -11,8 +11,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class SiteMirrorServiceTest {
 
@@ -33,6 +32,7 @@ class SiteMirrorServiceTest {
         assertEquals("<html>Home</html>", Files.readString(tempDir.resolve("index.html")));
         assertEquals("<html>About</html>", Files.readString(tempDir.resolve("about/index.html")));
         assertEquals(3, manifest.pages().size());
+        assertEquals(3, manifest.successfulCount());
     }
 
     @Test
@@ -45,9 +45,10 @@ class SiteMirrorServiceTest {
         assertTrue(Files.exists(manifestPath));
 
         final String json = Files.readString(manifestPath);
-        assertTrue(json.contains("\"seedUrl\""));
-        assertTrue(json.contains("\"mirroredAt\""));
-        assertTrue(json.contains("\"pageCount\": 1"));
+        assertTrue(json.contains("\"startUrl\""));
+        assertTrue(json.contains("\"generatedAt\""));
+        assertTrue(json.contains("\"documentCount\""));
+        assertTrue(json.contains("\"successfulCount\""));
         assertTrue(json.contains("https://example.com/"));
     }
 
@@ -65,16 +66,22 @@ class SiteMirrorServiceTest {
         final MirroredPage entry = manifest.pages().get(0);
         assertEquals(URI.create("https://example.com/shop"), entry.url());
         assertEquals("Shop", entry.title());
-        assertEquals(200, entry.statusCode());
+        assertEquals(200, entry.status());
         assertEquals(fetchedAt, entry.fetchedAt());
+        assertEquals(MirrorStatus.SUCCESS, entry.mirrorStatus());
+        assertNotNull(entry.id());
+        assertNotNull(entry.localHtmlPath());
+        assertFalse(entry.localHtmlPath().startsWith("/"), "localHtmlPath must be relative");
+        assertNull(entry.depth(), "depth must be null when crawler does not expose traversal depth");
     }
 
     @Test
     void shouldProduceEmptyManifestWhenNoPagesCrawled(@TempDir final Path tempDir) throws Exception {
         final MirrorManifest manifest = mirror(tempDir, List.of());
 
-        assertEquals(0, manifest.pages().size());
-        assertEquals(SEED, manifest.seedUrl());
+        assertEquals(0, manifest.documentCount());
+        assertEquals(0, manifest.successfulCount());
+        assertEquals(SEED, manifest.startUrl());
         assertTrue(Files.exists(tempDir.resolve(MirrorManifest.FILE_NAME)));
     }
 
@@ -98,7 +105,6 @@ class SiteMirrorServiceTest {
 
     @Test
     void shouldRespectSameDomainOnlyOptionInConfigBuilding(@TempDir final Path tempDir) throws Exception {
-        // Verify that sameDomainOnly=true is the default and flows into options
         final SiteMirrorOptions options = SiteMirrorOptions.builder()
                 .seedUrl(SEED)
                 .outputDir(tempDir)
@@ -108,6 +114,61 @@ class SiteMirrorServiceTest {
                 .build();
 
         assertTrue(options.sameDomainOnly(), "Same-domain must default to true");
+    }
+
+    @Test
+    void shouldRecordWriteFailedWhenFileCannotBeWritten(@TempDir final Path tempDir) throws Exception {
+        // Block 'about/index.html' by creating a file at 'about' so createDirectories fails
+        Files.createFile(tempDir.resolve("about"));
+
+        final List<WebPage> pages = List.of(
+                page("https://example.com/", "<html>Home</html>", "Home"),
+                page("https://example.com/about", "<html>About</html>", "About"));
+
+        final MirrorManifest manifest = mirror(tempDir, pages);
+
+        assertEquals(2, manifest.documentCount());
+        assertEquals(1, manifest.successfulCount());
+        assertEquals(1, manifest.failedCount());
+
+        final MirroredPage failed = manifest.pages().stream()
+                .filter(p -> p.mirrorStatus() == MirrorStatus.WRITE_FAILED)
+                .findFirst()
+                .orElseThrow();
+        assertEquals(URI.create("https://example.com/about"), failed.url());
+        assertNull(failed.localHtmlPath());
+        assertNotNull(failed.errorMessage());
+    }
+
+    @Test
+    void manifestPathsShouldBeRelativeToOutputDir(@TempDir final Path tempDir) throws Exception {
+        final List<WebPage> pages = List.of(
+                page("https://example.com/section/page", "<html>Page</html>", "Page"));
+
+        final MirrorManifest manifest = mirror(tempDir, pages);
+
+        final MirroredPage entry = manifest.pages().get(0);
+        assertEquals(MirrorStatus.SUCCESS, entry.mirrorStatus());
+        assertEquals("section/page/index.html", entry.localHtmlPath());
+    }
+
+    @Test
+    void manifestShouldIncludeConfigMetadata(@TempDir final Path tempDir) throws Exception {
+        final SiteMirrorOptions options = SiteMirrorOptions.builder()
+                .seedUrl(SEED)
+                .outputDir(tempDir)
+                .maxPages(42)
+                .maxDepth(5)
+                .sameDomainOnly(false)
+                .build();
+        final SiteMirrorService service = new SiteMirrorService();
+        final MirrorManifest manifest = service.mirror(options, consumer -> {});
+
+        assertEquals(42, manifest.maxPages());
+        assertEquals(5, manifest.maxDepth());
+        assertFalse(manifest.sameDomainOnly());
+        assertEquals(MirrorManifest.MANIFEST_VERSION, manifest.manifestVersion());
+        assertNotNull(manifest.generatedAt());
     }
 
     // ------------------------------------------------------------------
