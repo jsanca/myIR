@@ -36,15 +36,18 @@ public final class PublicationPipeline {
     private final PublicationSource source;
     private final PdfRenderer renderer;
     private final PdfAssemblyStrategy assemblyStrategy;
+    private final PublicationOrderingStrategy orderingStrategy;
     private final Path output;
     private final PublicationFormat format;
 
     private PublicationPipeline(final PublicationSource source, final PdfRenderer renderer,
-            final PdfAssemblyStrategy assemblyStrategy, final Path output,
+            final PdfAssemblyStrategy assemblyStrategy,
+            final PublicationOrderingStrategy orderingStrategy, final Path output,
             final PublicationFormat format) {
         this.source = source;
         this.renderer = renderer;
         this.assemblyStrategy = assemblyStrategy;
+        this.orderingStrategy = orderingStrategy;
         this.output = output;
         this.format = format;
     }
@@ -60,6 +63,7 @@ public final class PublicationPipeline {
     public PublicationSource source() { return source; }
     public PdfRenderer renderer() { return renderer; }
     public PdfAssemblyStrategy assemblyStrategy() { return assemblyStrategy; }
+    public PublicationOrderingStrategy orderingStrategy() { return orderingStrategy; }
     public Path output() { return output; }
     public PublicationFormat format() { return format; }
 
@@ -75,15 +79,22 @@ public final class PublicationPipeline {
      * @throws IOException if rendering, assembly, or file I/O fails
      */
     public PublicationArtifact run() throws IOException {
-        final List<MirroredPage> pages = source.manifest().pages().stream()
-                .filter(p -> p.mirrorStatus() == MirrorStatus.SUCCESS && p.localHtmlPath() != null)
-                .toList();
+        final List<MirroredPage> pages = orderingStrategy.order(source.manifest());
 
         final List<byte[]> renderedPages = new ArrayList<>(pages.size());
+        final List<AssemblyReport.RenderFailure> failures = new ArrayList<>();
+
         for (final MirroredPage page : pages) {
             final Path htmlFile = source.contentDir().resolve(page.localHtmlPath());
             System.out.printf("[Pipeline] Rendering %s%n", htmlFile);
-            renderedPages.add(renderer.render(htmlFile));
+            try {
+                final PdfRenderOptions opts = PdfRenderOptions.forFile(htmlFile);
+                renderedPages.add(renderer.render(htmlFile, opts).bytes());
+            } catch (final IOException e) {
+                final String url = page.url() != null ? page.url().toString() : htmlFile.toString();
+                System.err.printf("[Pipeline][WARN] Render failed for %s: %s%n", url, e.getMessage());
+                failures.add(new AssemblyReport.RenderFailure(url, e.getMessage()));
+            }
         }
 
         final byte[] assembled = assemblyStrategy.assemble(renderedPages);
@@ -93,10 +104,13 @@ public final class PublicationPipeline {
         }
         Files.write(output, assembled);
 
-        System.out.printf("[Pipeline] Artifact written → %s (%d bytes)%n",
-                output, assembled.length);
+        final AssemblyReport report = new AssemblyReport(
+                pages.size(), renderedPages.size(), failures.size(), assembled.length, failures);
 
-        return new PublicationArtifact(output, format, assembled.length, Instant.now());
+        System.out.printf("[Pipeline] Artifact written → %s (%d bytes, %d/%d pages rendered, %d failed)%n",
+                output, assembled.length, renderedPages.size(), pages.size(), failures.size());
+
+        return new PublicationArtifact(output, format, assembled.length, Instant.now(), report);
     }
 
     // ------------------------------------------------------------------
@@ -108,6 +122,8 @@ public final class PublicationPipeline {
         private PublicationSource source;
         private PdfRenderer renderer;
         private PdfAssemblyStrategy assemblyStrategy;
+        private PublicationOrderingStrategy orderingStrategy =
+                new DiscoveredOrderPublicationOrderingStrategy();
         private Path output;
         private PublicationFormat format = PublicationFormat.PDF;
 
@@ -125,6 +141,11 @@ public final class PublicationPipeline {
 
         public Builder assemblyStrategy(final PdfAssemblyStrategy assemblyStrategy) {
             this.assemblyStrategy = Objects.requireNonNull(assemblyStrategy, "assemblyStrategy");
+            return this;
+        }
+
+        public Builder orderingStrategy(final PublicationOrderingStrategy orderingStrategy) {
+            this.orderingStrategy = Objects.requireNonNull(orderingStrategy, "orderingStrategy");
             return this;
         }
 
@@ -150,7 +171,8 @@ public final class PublicationPipeline {
             Objects.requireNonNull(renderer, "renderer is required");
             Objects.requireNonNull(assemblyStrategy, "assemblyStrategy is required");
             Objects.requireNonNull(output, "output is required");
-            return new PublicationPipeline(source, renderer, assemblyStrategy, output, format);
+            return new PublicationPipeline(source, renderer, assemblyStrategy, orderingStrategy,
+                    output, format);
         }
     }
 }

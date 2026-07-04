@@ -6,6 +6,8 @@ module codex.ir.app {
     requires com.fasterxml.jackson.databind;
     requires org.jsoup;
     requires java.net.http;
+    requires openhtmltopdf.pdfbox;
+    requires org.apache.pdfbox;
 
     // Required so Jackson can access private Builder constructors via reflection
     opens codex.apps.siteexporter to com.fasterxml.jackson.databind;

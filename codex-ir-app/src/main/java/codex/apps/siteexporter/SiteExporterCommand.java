@@ -54,15 +54,59 @@ public final class SiteExporterCommand {
         System.out.println("[SiteExporter] " + mirrorOptions);
 
         final SiteMirrorService mirrorService = new SiteMirrorService();
+        final MirrorManifest mirrorManifest;
         try {
-            mirrorService.mirror(mirrorOptions);
+            mirrorManifest = mirrorService.mirror(mirrorOptions);
         } catch (final IOException e) {
             System.err.println("[ERROR] Mirror failed: " + e.getMessage());
             System.exit(1);
+            return;
         }
 
+        System.out.println("[SiteExporter] Mirror complete. Downloading assets...");
+        final AssetManifest assetManifest;
+        try {
+            assetManifest = new SiteAssetService().download(mirrorOptions, mirrorManifest);
+        } catch (final IOException e) {
+            System.err.println("[ERROR] Asset download failed: " + e.getMessage());
+            System.exit(1);
+            return;
+        }
+
+        System.out.println("[SiteExporter] Rewriting links...");
+        try {
+            new SiteLinkRewriteService().rewrite(mirrorOptions.outputDir(), mirrorManifest, assetManifest);
+        } catch (final IOException e) {
+            System.err.println("[ERROR] Link rewrite failed: " + e.getMessage());
+            System.exit(1);
+            return;
+        }
+
+        System.out.println("[SiteExporter] Rendering and assembling publication...");
         System.out.println("[SiteExporter] Export options : " + exportOptions);
-        System.out.println("[SiteExporter] Publication export not yet implemented — see Phase 8.");
+        try {
+            final PublicationArtifact artifact = PublicationPipeline.builder()
+                    .source(SiteMirrorSource.of(mirrorOptions.outputDir(), mirrorManifest))
+                    .renderer(new OpenHtmlToPdfRenderer())
+                    .assemblyStrategy(new ManifestOrderPdfAssemblyStrategy())
+                    .output(exportOptions.outputPath())
+                    .format(exportOptions.format())
+                    .build()
+                    .run();
+            final AssemblyReport report = artifact.assemblyReport();
+            System.out.printf("[SiteExporter] Done. Artifact → %s (%d bytes)%n",
+                    artifact.path().toAbsolutePath(), artifact.sizeBytes());
+            System.out.printf("[SiteExporter] Assembly: %d attempted, %d rendered, %d failed%n",
+                    report.pagesAttempted(), report.pagesRendered(), report.pagesFailed());
+            if (report.pagesFailed() > 0) {
+                report.renderFailures().forEach(f ->
+                        System.err.printf("[SiteExporter][WARN] Render failed: %s — %s%n",
+                                f.pageUrl(), f.reason()));
+            }
+        } catch (final IOException e) {
+            System.err.println("[ERROR] Publication export failed: " + e.getMessage());
+            System.exit(1);
+        }
     }
 
     // ------------------------------------------------------------------

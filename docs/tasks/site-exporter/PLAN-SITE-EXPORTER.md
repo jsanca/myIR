@@ -381,31 +381,89 @@ Next Step
 
 ---
 
-## Phase 6 — Asset Download and Link Rewriting
+Phase 6A — Asset Discovery and Download
 
-Goal:
+Goal
 
-```text
-Make the mirrored site navigable locally.
-```
+Descargar assets referenciados por las páginas HTML ya espejadas, sin reescribir todavía el HTML.
 
-Deliverables:
+Deliverables
 
-```text
-- AssetDownloader
-- HtmlLinkRewriter
 - AssetMetadata
-- Rewritten internal links
-- Rewritten CSS/image references
-```
+- AssetManifest or assets section in MirrorManifest
+- AssetReferenceExtractor
+- AssetDownloader
+- AssetLocalPathResolver
+- Asset download tests
 
-Validation:
+Scope
 
-```text
-- Test HTML input with links/assets.
-- Verify local rewritten output.
+Included:
+- img[src]
+- link[rel=stylesheet][href]
+- script[src] if decidimos incluir JS
+- same-domain assets by default
+- deduplicación por canonical asset URL
+- paths relativos para assets
+- registro de SUCCESS / DOWNLOAD_FAILED / SKIPPED
+
+Excluded:
+- CSS url(...) discovery
+- HTML rewriting
+- PDF
+- ePub
+
+Validation
+
+- Test HTML fixture with image, CSS, JS.
+- Verify assets are discovered.
+- Verify same asset referenced twice downloads once.
+- Verify external assets are skipped or left untouched by policy.
+- Verify asset paths are relative.
+- Verify failed downloads are recorded.
+- Verify no asset path escapes outputDir.
+
+Yo mantendría script[src] como opcional, pero lo registraría desde ya. Para PDF probablemente CSS e imágenes importan más que JS.
+
+Phase 6B — HTML Link Rewriting
+
+Goal
+
+Reescribir los HTML espejados para que el sitio sea navegable localmente.
+
+Deliverables
+
+- HtmlLinkRewriter
+- PageLinkRewritePlan
+- AssetLinkRewritePlan
+- Rewritten internal page links
+- Rewritten asset references
+- Rewrite tests
+
+Scope
+
+Included:
+- a[href] internos hacia páginas espejadas
+- img[src] hacia assets descargados
+- link[rel=stylesheet][href] hacia assets descargados
+- script[src] si Phase 6A lo soportó
+- external links remain external
+- missing/skipped links remain unchanged or are marked in report
+
+Excluded:
+- CSS url(...) rewriting
+- canonical/meta rewriting
+- PDF
+- ePub
+
+Validation
+
+- Test HTML input with internal links, external links, images, CSS.
+- Verify internal links point to local relative paths.
 - Verify external links remain external.
-```
+- Verify asset references point to downloaded local asset paths.
+- Verify missing assets do not break rewrite.
+- Verify rewritten HTML is valid enough for Jsoup round-trip.
 
 ---
 

@@ -4,19 +4,20 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 /**
- * Renders a single local HTML file to PDF bytes.
+ * Renders a single local HTML file to a {@link RenderedPdf}.
  *
- * <p>Implementations are provided in Phase 8 (e.g. an OpenHTMLToPDF adapter).
- * Phase 7 uses fake implementations for pipeline composition tests.</p>
+ * <p>The primary implementation is {@link OpenHtmlToPdfRenderer}.
+ * Tests use inline lambda fakes.</p>
  */
 public interface PdfRenderer {
 
     /**
-     * Renders the given HTML file and returns the PDF content as a byte array.
+     * Renders the given HTML file to PDF using the provided options.
      *
-     * @param htmlFile absolute path to the HTML file to render
-     * @return PDF bytes; never {@code null}, never empty on success
+     * @param htmlFile absolute path to the HTML file to render; must exist
+     * @param options  rendering configuration (page size, base URI); must not be {@code null}
+     * @return the rendered PDF; never {@code null}
      * @throws IOException if the file cannot be read or rendering fails
      */
-    byte[] render(Path htmlFile) throws IOException;
+    RenderedPdf render(Path htmlFile, PdfRenderOptions options) throws IOException;
 }

@@ -145,6 +145,114 @@ class PublicationPipelineTest {
     }
 
     // ------------------------------------------------------------------
+    // Ordering strategy
+    // ------------------------------------------------------------------
+
+    @Test
+    void defaultOrderingStrategyShouldBeDiscoveredOrder(@TempDir final Path tempDir) {
+        final PublicationPipeline pipeline = PublicationPipeline.builder()
+                .source(sourceWith(tempDir, List.of()))
+                .renderer(fakePdfRenderer())
+                .assemblyStrategy(concatAssembler())
+                .output(tempDir.resolve("output.pdf"))
+                .build();
+
+        assertNotNull(pipeline.orderingStrategy());
+        assertInstanceOf(DiscoveredOrderPublicationOrderingStrategy.class,
+                pipeline.orderingStrategy());
+    }
+
+    @Test
+    void orderingStrategyCanBeOverridden(@TempDir final Path tempDir) {
+        final PublicationOrderingStrategy custom = manifest -> List.of();
+        final PublicationPipeline pipeline = PublicationPipeline.builder()
+                .source(sourceWith(tempDir, List.of()))
+                .renderer(fakePdfRenderer())
+                .assemblyStrategy(concatAssembler())
+                .orderingStrategy(custom)
+                .output(tempDir.resolve("output.pdf"))
+                .build();
+
+        assertSame(custom, pipeline.orderingStrategy());
+    }
+
+    @Test
+    void orderingStrategyShouldNullThrowInBuilder(@TempDir final Path tempDir) {
+        assertThrows(NullPointerException.class, () ->
+                PublicationPipeline.builder()
+                        .source(sourceWith(tempDir, List.of()))
+                        .renderer(fakePdfRenderer())
+                        .assemblyStrategy(concatAssembler())
+                        .orderingStrategy(null)
+                        .output(tempDir.resolve("output.pdf"))
+                        .build());
+    }
+
+    @Test
+    void runShouldRespectOrderingStrategyOrder(@TempDir final Path tempDir) throws Exception {
+        writeHtml(tempDir, "first.html", "<html>First</html>");
+        writeHtml(tempDir, "second.html", "<html>Second</html>");
+
+        final java.util.List<Path> renderedOrder = new java.util.ArrayList<>();
+        final PdfRenderer recordingRenderer = (htmlFile, opts) -> {
+            renderedOrder.add(htmlFile);
+            return new RenderedPdf(new byte[]{1}, htmlFile);
+        };
+
+        final MirroredPage pageA = successPage("id-a", "https://example.com/a", "first.html");
+        final MirroredPage pageB = successPage("id-b", "https://example.com/b", "second.html");
+        final MirrorManifest manifest = manifestWithPages(pageA, pageB);
+
+        // Custom strategy reverses order
+        final PublicationOrderingStrategy reverseStrategy = m -> List.of(pageB, pageA);
+
+        PublicationPipeline.builder()
+                .source(SiteMirrorSource.of(tempDir, manifest))
+                .renderer(recordingRenderer)
+                .assemblyStrategy(concatAssembler())
+                .orderingStrategy(reverseStrategy)
+                .output(tempDir.resolve("out.pdf"))
+                .build()
+                .run();
+
+        assertEquals(2, renderedOrder.size());
+        assertTrue(renderedOrder.get(0).toString().endsWith("second.html"),
+                "first rendered file should be second.html per custom strategy");
+        assertTrue(renderedOrder.get(1).toString().endsWith("first.html"),
+                "second rendered file should be first.html per custom strategy");
+    }
+
+    @Test
+    void runShouldPassOrderedPagesToAssemblyStrategy(@TempDir final Path tempDir) throws Exception {
+        writeHtml(tempDir, "p1.html", "<html>P1</html>");
+        writeHtml(tempDir, "p2.html", "<html>P2</html>");
+
+        final java.util.List<byte[]> capturedPages = new java.util.ArrayList<>();
+        final PdfAssemblyStrategy capturingAssembler = pages -> {
+            capturedPages.addAll(pages);
+            return new byte[]{99};
+        };
+
+        final MirroredPage pageA = successPage("id-a", "https://example.com/a", "p1.html");
+        final MirroredPage pageB = successPage("id-b", "https://example.com/b", "p2.html");
+        final MirrorManifest manifest = manifestWithPages(pageA, pageB);
+
+        // Strategy returns only pageB
+        final PublicationOrderingStrategy singlePageStrategy = m -> List.of(pageB);
+
+        PublicationPipeline.builder()
+                .source(SiteMirrorSource.of(tempDir, manifest))
+                .renderer(fakePdfRenderer())
+                .assemblyStrategy(capturingAssembler)
+                .orderingStrategy(singlePageStrategy)
+                .output(tempDir.resolve("out.pdf"))
+                .build()
+                .run();
+
+        assertEquals(1, capturedPages.size(), "assembler should receive only pages the strategy selected");
+    }
+
+    // ------------------------------------------------------------------
     // run() with fake components
     // ------------------------------------------------------------------
 
@@ -154,9 +262,9 @@ class PublicationPipelineTest {
         writeHtml(tempDir, "about/index.html", "<html>About</html>");
 
         final AtomicInteger renderCount = new AtomicInteger();
-        final PdfRenderer countingRenderer = htmlFile -> {
+        final PdfRenderer countingRenderer = (htmlFile, opts) -> {
             renderCount.incrementAndGet();
-            return new byte[]{1, 2, 3};
+            return new RenderedPdf(new byte[]{1, 2, 3}, htmlFile);
         };
 
         final MirrorManifest manifest = manifestWithPages(
@@ -190,7 +298,7 @@ class PublicationPipelineTest {
 
         PublicationPipeline.builder()
                 .source(SiteMirrorSource.of(tempDir, manifest))
-                .renderer(htmlFile -> { renderCount.incrementAndGet(); return new byte[]{1}; })
+                .renderer((htmlFile, opts) -> { renderCount.incrementAndGet(); return new RenderedPdf(new byte[]{1}, htmlFile); })
                 .assemblyStrategy(concatAssembler())
                 .output(tempDir.resolve("out.pdf"))
                 .build()
@@ -217,7 +325,7 @@ class PublicationPipelineTest {
 
         PublicationPipeline.builder()
                 .source(SiteMirrorSource.of(tempDir, manifest))
-                .renderer(htmlFile -> new byte[]{1})
+                .renderer((htmlFile, opts) -> new RenderedPdf(new byte[]{1}, htmlFile))
                 .assemblyStrategy(capturingAssembler)
                 .output(tempDir.resolve("out.pdf"))
                 .build()
@@ -237,7 +345,7 @@ class PublicationPipelineTest {
 
         PublicationPipeline.builder()
                 .source(SiteMirrorSource.of(tempDir, manifest))
-                .renderer(htmlFile -> new byte[]{1})
+                .renderer((htmlFile, opts) -> new RenderedPdf(new byte[]{1}, htmlFile))
                 .assemblyStrategy(pages -> expectedBytes)
                 .output(outputFile)
                 .build()
@@ -259,7 +367,7 @@ class PublicationPipelineTest {
 
         final PublicationArtifact artifact = PublicationPipeline.builder()
                 .source(SiteMirrorSource.of(tempDir, manifest))
-                .renderer(htmlFile -> new byte[]{1})
+                .renderer((htmlFile, opts) -> new RenderedPdf(new byte[]{1}, htmlFile))
                 .assemblyStrategy(pages -> assembled)
                 .output(outputFile)
                 .format(PublicationFormat.PDF)
@@ -270,6 +378,7 @@ class PublicationPipelineTest {
         assertEquals(PublicationFormat.PDF, artifact.format());
         assertEquals(assembled.length, artifact.sizeBytes());
         assertNotNull(artifact.producedAt());
+        assertNotNull(artifact.assemblyReport());
     }
 
     @Test
@@ -279,13 +388,122 @@ class PublicationPipelineTest {
 
         final PublicationArtifact artifact = PublicationPipeline.builder()
                 .source(SiteMirrorSource.of(tempDir, manifest))
-                .renderer(htmlFile -> new byte[]{1})
+                .renderer((htmlFile, opts) -> new RenderedPdf(new byte[]{1}, htmlFile))
                 .assemblyStrategy(pages -> new byte[0])
                 .output(tempDir.resolve("out.pdf"))
                 .build()
                 .run();
 
         assertEquals(0, artifact.sizeBytes());
+        assertEquals(0, artifact.assemblyReport().pagesAttempted());
+    }
+
+    // ------------------------------------------------------------------
+    // AssemblyReport
+    // ------------------------------------------------------------------
+
+    @Test
+    void assemblyReportShouldReflectSuccessfulRun(@TempDir final Path tempDir) throws Exception {
+        writeHtml(tempDir, "p1.html", "<html>P1</html>");
+        writeHtml(tempDir, "p2.html", "<html>P2</html>");
+
+        final MirrorManifest manifest = manifestWithPages(
+                successPage("id-1", "https://example.com/p1", "p1.html"),
+                successPage("id-2", "https://example.com/p2", "p2.html"));
+
+        final PublicationArtifact artifact = PublicationPipeline.builder()
+                .source(SiteMirrorSource.of(tempDir, manifest))
+                .renderer((htmlFile, opts) -> new RenderedPdf(new byte[]{1}, htmlFile))
+                .assemblyStrategy(concatAssembler())
+                .output(tempDir.resolve("out.pdf"))
+                .build()
+                .run();
+
+        final AssemblyReport report = artifact.assemblyReport();
+        assertEquals(2, report.pagesAttempted());
+        assertEquals(2, report.pagesRendered());
+        assertEquals(0, report.pagesFailed());
+        assertTrue(report.renderFailures().isEmpty());
+        assertEquals(artifact.sizeBytes(), report.outputSizeBytes());
+    }
+
+    @Test
+    void assemblyReportShouldRecordRenderFailureAndContinue(@TempDir final Path tempDir)
+            throws Exception {
+        writeHtml(tempDir, "good.html", "<html>Good</html>");
+
+        final MirrorManifest manifest = manifestWithPages(
+                successPage("id-ok", "https://example.com/good", "good.html"),
+                successPage("id-bad", "https://example.com/bad", "missing.html"));
+
+        final AtomicInteger renderCount = new AtomicInteger();
+        final PdfRenderer flakyRenderer = (htmlFile, opts) -> {
+            renderCount.incrementAndGet();
+            if (htmlFile.getFileName().toString().equals("missing.html")) {
+                throw new java.io.IOException("file not found");
+            }
+            return new RenderedPdf(new byte[]{1, 2, 3}, htmlFile);
+        };
+
+        final PublicationArtifact artifact = PublicationPipeline.builder()
+                .source(SiteMirrorSource.of(tempDir, manifest))
+                .renderer(flakyRenderer)
+                .assemblyStrategy(concatAssembler())
+                .output(tempDir.resolve("out.pdf"))
+                .build()
+                .run();
+
+        final AssemblyReport report = artifact.assemblyReport();
+        assertEquals(2, report.pagesAttempted(), "both pages were attempted");
+        assertEquals(1, report.pagesRendered(), "only one page rendered successfully");
+        assertEquals(1, report.pagesFailed(), "one page failed");
+        assertEquals(1, report.renderFailures().size());
+        assertEquals("https://example.com/bad", report.renderFailures().get(0).pageUrl());
+        assertEquals(2, renderCount.get(), "renderer must be called for every page");
+    }
+
+    @Test
+    void assemblyReportShouldContainOutputSizeBytes(@TempDir final Path tempDir) throws Exception {
+        writeHtml(tempDir, "index.html", "<html>Home</html>");
+
+        final byte[] assembled = new byte[]{10, 20, 30};
+        final MirrorManifest manifest = manifestWithPages(
+                successPage("id-1", "https://example.com/", "index.html"));
+
+        final PublicationArtifact artifact = PublicationPipeline.builder()
+                .source(SiteMirrorSource.of(tempDir, manifest))
+                .renderer((htmlFile, opts) -> new RenderedPdf(new byte[]{1}, htmlFile))
+                .assemblyStrategy(pages -> assembled)
+                .output(tempDir.resolve("out.pdf"))
+                .build()
+                .run();
+
+        assertEquals(assembled.length, artifact.assemblyReport().outputSizeBytes());
+    }
+
+    @Test
+    void allRenderFailuresShouldNotAbortPipeline(@TempDir final Path tempDir) throws Exception {
+        final MirrorManifest manifest = manifestWithPages(
+                successPage("id-1", "https://example.com/a", "missing-a.html"),
+                successPage("id-2", "https://example.com/b", "missing-b.html"));
+
+        final PdfRenderer alwaysFails = (htmlFile, opts) -> {
+            throw new java.io.IOException("always fails");
+        };
+
+        final PublicationArtifact artifact = PublicationPipeline.builder()
+                .source(SiteMirrorSource.of(tempDir, manifest))
+                .renderer(alwaysFails)
+                .assemblyStrategy(pages -> new byte[0])
+                .output(tempDir.resolve("out.pdf"))
+                .build()
+                .run();
+
+        final AssemblyReport report = artifact.assemblyReport();
+        assertEquals(2, report.pagesAttempted());
+        assertEquals(0, report.pagesRendered());
+        assertEquals(2, report.pagesFailed());
+        assertEquals(0, artifact.sizeBytes(), "empty assembly should produce zero-byte artifact");
     }
 
     // ------------------------------------------------------------------
@@ -293,7 +511,7 @@ class PublicationPipelineTest {
     // ------------------------------------------------------------------
 
     private static PdfRenderer fakePdfRenderer() {
-        return htmlFile -> new byte[]{1, 2, 3};
+        return (htmlFile, opts) -> new RenderedPdf(new byte[]{1, 2, 3}, htmlFile);
     }
 
     private static PdfAssemblyStrategy concatAssembler() {
