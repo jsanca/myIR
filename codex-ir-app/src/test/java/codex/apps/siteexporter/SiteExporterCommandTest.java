@@ -162,6 +162,15 @@ class SiteExporterCommandTest {
     }
 
     @Test
+    void parseArgsShouldDefaultToEpubOutputPathForEpubFormat() {
+        final SiteExporterCommand.ParsedArgs args = SiteExporterCommand.parseArgs(
+                new String[]{"--url", "https://example.com/", "--format", "epub"});
+
+        assertEquals(Path.of("./output.epub"), args.outputPath(),
+                "default output path must be ./output.epub when --format epub is used");
+    }
+
+    @Test
     void parseArgsShouldUseExplicitOutputPathEvenForMarkdownFormat() {
         final SiteExporterCommand.ParsedArgs args = SiteExporterCommand.parseArgs(new String[]{
                 "--url", "https://example.com/",

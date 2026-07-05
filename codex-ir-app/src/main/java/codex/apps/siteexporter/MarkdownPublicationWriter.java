@@ -1,10 +1,5 @@
 package codex.apps.siteexporter;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
-
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -50,8 +45,7 @@ public final class MarkdownPublicationWriter {
     private final PublicationOrderingStrategy orderingStrategy;
     private final Path markdownPagesDir;
 
-    private final Pdf2HtmlExDetector detector = new Pdf2HtmlExDetector();
-    private final Pdf2HtmlExTextExtractor extractor = new Pdf2HtmlExTextExtractor();
+    private final ReadablePageExtractor pageExtractor = new ReadablePageExtractor();
 
     private MarkdownPublicationWriter(final PublicationSource source,
             final PublicationOrderingStrategy orderingStrategy,
@@ -133,9 +127,6 @@ public final class MarkdownPublicationWriter {
 
     private String extractPageMarkdown(final Path htmlFile, final MirroredPage page,
             final int sectionIndex) throws IOException {
-        final String rawHtml = Files.readString(htmlFile);
-        final String baseUri = htmlFile.toAbsolutePath().getParent().toUri().toString();
-
         final StringBuilder sb = new StringBuilder(1024);
         sb.append("---\n\n");
         sb.append("## ").append(escapeMarkdown(deriveSection(page, sectionIndex))).append("\n\n");
@@ -143,41 +134,16 @@ public final class MarkdownPublicationWriter {
             sb.append("<!-- source: ").append(page.url()).append(" -->\n\n");
         }
 
-        if (detector.detect(rawHtml, baseUri)) {
-            final ReaderDocument doc = extractor.extract(rawHtml, baseUri);
-            for (final ReaderPage rp : doc.pages()) {
-                for (final String para : rp.paragraphs()) {
-                    if (!para.isBlank()) {
-                        sb.append(escapeMarkdown(para)).append("\n\n");
-                    }
+        final ReaderDocument doc = pageExtractor.extract(htmlFile);
+        for (final ReaderPage rp : doc.pages()) {
+            for (final String para : rp.paragraphs()) {
+                if (!para.isBlank()) {
+                    sb.append(escapeMarkdown(para)).append("\n\n");
                 }
             }
-        } else {
-            extractNormalHtmlMarkdown(Jsoup.parse(rawHtml, baseUri), sb);
         }
 
         return sb.toString();
-    }
-
-    private static void extractNormalHtmlMarkdown(final Document doc, final StringBuilder sb) {
-        final Element body = doc.body();
-        if (body == null) {
-            return;
-        }
-        final Elements elements = body.select("h1, h2, h3, h4, h5, h6, p, li");
-        if (elements.isEmpty()) {
-            final String text = body.text().trim();
-            if (!text.isBlank()) {
-                sb.append(escapeMarkdown(text)).append("\n\n");
-            }
-            return;
-        }
-        for (final Element el : elements) {
-            final String text = el.text().trim();
-            if (!text.isBlank()) {
-                sb.append(escapeMarkdown(text)).append("\n\n");
-            }
-        }
     }
 
     // ------------------------------------------------------------------

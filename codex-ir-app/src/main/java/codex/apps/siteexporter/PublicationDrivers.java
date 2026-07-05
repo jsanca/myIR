@@ -36,8 +36,7 @@ public final class PublicationDrivers {
         return switch (format) {
             case PDF      -> new PdfPublicationDriver(outputDir);
             case MARKDOWN -> new MarkdownPublicationDriver(outputDir);
-            case EPUB     -> throw new IllegalArgumentException(
-                    "EPUB format is not yet supported. Use PDF or MARKDOWN.");
+            case EPUB     -> new EpubPublicationDriver(outputDir);
         };
     }
 }

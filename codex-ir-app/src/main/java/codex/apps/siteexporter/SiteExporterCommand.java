@@ -256,7 +256,7 @@ public final class SiteExporterCommand {
                         try {
                             format = PublicationFormat.valueOf(args[++i].toUpperCase());
                         } catch (final IllegalArgumentException e) {
-                            System.err.println("[WARN] Unknown --format value; valid: pdf, epub. Using PDF.");
+                            System.err.println("[WARN] Unknown --format value; valid: pdf, markdown, epub. Using PDF.");
                         }
                     }
                 }
@@ -278,9 +278,11 @@ public final class SiteExporterCommand {
 
         // Default output path depends on the chosen format
         if (!outputPathExplicit) {
-            outputPath = (format == PublicationFormat.MARKDOWN)
-                    ? Path.of("./output.md")
-                    : Path.of("./output.pdf");
+            outputPath = switch (format) {
+                case MARKDOWN -> Path.of("./output.md");
+                case EPUB     -> Path.of("./output.epub");
+                default       -> Path.of("./output.pdf");
+            };
         }
 
         if (seedUrl == null && fromMirrorDir == null) {

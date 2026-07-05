@@ -48,15 +48,12 @@ class PublicationDriversTest {
     }
 
     @Test
-    void forFormatShouldThrowForEpub(@TempDir final Path tempDir) {
-        final IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> PublicationDrivers.forFormat(PublicationFormat.EPUB, tempDir));
+    void forFormatShouldReturnEpubDriverForEpub(@TempDir final Path tempDir) {
+        final PublicationDriver driver = PublicationDrivers.forFormat(
+                PublicationFormat.EPUB, tempDir);
 
-        final String msg = ex.getMessage();
-        assertTrue(msg.toUpperCase().contains("EPUB"),
-                "error message must mention EPUB");
-        assertTrue(msg.contains("PDF") || msg.contains("MARKDOWN"),
-                "error message must suggest a supported alternative");
+        assertInstanceOf(EpubPublicationDriver.class, driver,
+                "forFormat(EPUB) must return an EpubPublicationDriver");
     }
 
     // ------------------------------------------------------------------
@@ -73,5 +70,21 @@ class PublicationDriversTest {
     void markdownDriverShouldNotRequireAssetProcessing(@TempDir final Path tempDir) {
         assertFalse(PublicationDrivers.forFormat(PublicationFormat.MARKDOWN, tempDir)
                 .requiresAssetProcessing());
+    }
+
+    @Test
+    void epubDriverShouldNotRequireAssetProcessing(@TempDir final Path tempDir) {
+        assertFalse(PublicationDrivers.forFormat(PublicationFormat.EPUB, tempDir)
+                .requiresAssetProcessing());
+    }
+
+    @Test
+    void forFormatShouldHandleAllKnownFormats(@TempDir final Path tempDir) {
+        for (final PublicationFormat format : PublicationFormat.values()) {
+            final PublicationDriver driver = assertDoesNotThrow(
+                    () -> PublicationDrivers.forFormat(format, tempDir),
+                    "forFormat must return a driver (not throw) for format: " + format);
+            assertNotNull(driver, "driver must not be null for format: " + format);
+        }
     }
 }
