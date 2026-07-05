@@ -222,5 +222,49 @@ public final class Corpora {
                     this.documentsWithLength.get()
             );
         }
+
+        @Override
+        public CorpusSnapshot snapshot() {
+            synchronized (statisticsMutationLock) {
+                return new InMemoryCorpusSnapshot(Map.copyOf(documentMap), statisticsCache.get());
+            }
+        }
+    }
+
+    private static final class InMemoryCorpusSnapshot implements CorpusSnapshot {
+
+        private final Map<String, Document> documents;
+        private final CorpusStatistics statistics;
+
+        private InMemoryCorpusSnapshot(final Map<String, Document> documents,
+                                       final CorpusStatistics statistics) {
+            this.documents = Objects.requireNonNull(documents);
+            this.statistics = Objects.requireNonNull(statistics);
+        }
+
+        @Override
+        public Optional<Document> get(final String id) {
+            return Optional.ofNullable(documents.get(id));
+        }
+
+        @Override
+        public boolean contains(final String id) {
+            return documents.containsKey(id);
+        }
+
+        @Override
+        public Iterable<Document> documents() {
+            return documents.values();
+        }
+
+        @Override
+        public int size() {
+            return documents.size();
+        }
+
+        @Override
+        public CorpusStatistics statistics() {
+            return statistics;
+        }
     }
 }

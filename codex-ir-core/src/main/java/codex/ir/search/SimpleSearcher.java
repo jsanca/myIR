@@ -1,8 +1,8 @@
 package codex.ir.search;
 
 import codex.ir.*;
-import codex.ir.corpus.Corpus;
-import codex.ir.indexer.InvertedIndex;
+import codex.ir.corpus.CorpusSnapshot;
+import codex.ir.indexer.IndexSnapshot;
 import codex.ir.indexer.Posting;
 import codex.ir.normalizer.Normalizer;
 import codex.ir.tokenizer.Tokenizer;
@@ -31,24 +31,27 @@ public class SimpleSearcher implements Searcher {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SimpleSearcher.class);
 
-    private final InvertedIndex invertedIndex;
-    private final Corpus corpus;
+    private final IndexSnapshot invertedIndex;
+    private final CorpusSnapshot corpus;
     private final Tokenizer tokenizer;
     private final Normalizer normalizer;
     private final Ranker ranker;
 
     /**
-     * Creates a new searcher backed by the given inverted index, corpus,
+     * Creates a new searcher backed by the given index snapshot, corpus snapshot,
      * tokenizer, and normalizer.
      *
-     * @param invertedIndex index used to retrieve matching document ids
-     * @param corpus corpus used to resolve document ids into documents
+     * <p>Both snapshots must have been taken after the ingestion round is complete so
+     * that the searcher and ranker see a consistent, stable view of the indexed data.</p>
+     *
+     * @param invertedIndex frozen index snapshot used to retrieve matching document ids
+     * @param corpus frozen corpus snapshot used to resolve document ids into documents
      * @param tokenizer tokenizer used to split the incoming query
      * @param normalizer normalizer used to normalize query tokens
      * @param ranker ranker used to score and order matched documents
      */
-    public SimpleSearcher(final InvertedIndex invertedIndex,
-                          final Corpus corpus,
+    public SimpleSearcher(final IndexSnapshot invertedIndex,
+                          final CorpusSnapshot corpus,
                           final Tokenizer tokenizer,
                           final Normalizer normalizer,
                           final Ranker ranker) {

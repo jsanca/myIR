@@ -82,11 +82,12 @@ class FieldAwareVectorIndexingTest {
         indexer.index(doc2);
 
         final Searcher lexicalSearcher = Searchers.lexical(
-                invertedIndex, corpus, tokenizer, normalizer, Rankers.tfIdf(corpus, invertedIndex));
+                invertedIndex.snapshot(), corpus.snapshot(), tokenizer, normalizer,
+                Rankers.tfIdf(corpus.snapshot(), invertedIndex.snapshot()));
 
         final Searcher vectorSearcher = Searchers.vector(
                 tokenizer, normalizer, documentWeighter, vectorizer,
-                Similarities.sparseCosine(), corpus, documentVectorStore, vocabulary, 0.1d);
+                Similarities.sparseCosine(), corpus.snapshot(), documentVectorStore, vocabulary, 0.1d);
 
         List<SearchResult> lexicalResults = lexicalSearcher.searchDetailed("collections");
         assertFalse(lexicalResults.isEmpty(),
@@ -149,7 +150,7 @@ class FieldAwareVectorIndexingTest {
 
         final Searcher vectorSearcher = Searchers.vector(
                 tokenizer, normalizer, documentWeighter, vectorizer,
-                Similarities.sparseCosine(), corpus, documentVectorStore, vocabulary, 0.1d);
+                Similarities.sparseCosine(), corpus.snapshot(), documentVectorStore, vocabulary, 0.1d);
 
         final List<SearchResult> consensusResults = vectorSearcher.searchDetailed("consensus");
         assertFalse(consensusResults.isEmpty(),
@@ -211,7 +212,7 @@ class FieldAwareVectorIndexingTest {
 
         final Searcher vectorSearcher = Searchers.vector(
                 tokenizer, normalizer, documentWeighter, vectorizer,
-                Similarities.sparseCosine(), corpus, documentVectorStore, vocabulary, 0.1d);
+                Similarities.sparseCosine(), corpus.snapshot(), documentVectorStore, vocabulary, 0.1d);
 
         final List<SearchResult> javaResults = vectorSearcher.searchDetailed("java");
         assertFalse(javaResults.isEmpty(),
@@ -231,9 +232,6 @@ class FieldAwareVectorIndexingTest {
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
 
         final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
-        final Searcher searcher = Searchers.lexical(
-                invertedIndex, corpus, tokenizer, normalizer,
-                Rankers.tfIdf(corpus, invertedIndex));
 
         final Document doc = Document.builder()
                 .id("precedence-doc")
@@ -242,6 +240,10 @@ class FieldAwareVectorIndexingTest {
                 .build();
 
         indexer.index(doc);
+
+        final Searcher searcher = Searchers.lexical(
+                invertedIndex.snapshot(), corpus.snapshot(), tokenizer, normalizer,
+                Rankers.tfIdf(corpus.snapshot(), invertedIndex.snapshot()));
 
         final List<SearchResult> legacyResults = searcher.searchDetailed("legacy");
         assertTrue(legacyResults.isEmpty(),
@@ -303,12 +305,12 @@ class FieldAwareVectorIndexingTest {
         indexer.index(anotherFieldDoc);
 
         final Searcher lexicalSearcher = Searchers.lexical(
-                invertedIndex, corpus, tokenizer, normalizer,
-                Rankers.tfIdf(corpus, invertedIndex));
+                invertedIndex.snapshot(), corpus.snapshot(), tokenizer, normalizer,
+                Rankers.tfIdf(corpus.snapshot(), invertedIndex.snapshot()));
 
         final Searcher vectorSearcher = Searchers.vector(
                 tokenizer, normalizer, documentWeighter, vectorizer,
-                Similarities.sparseCosine(), corpus, documentVectorStore, vocabulary, 0.1d);
+                Similarities.sparseCosine(), corpus.snapshot(), documentVectorStore, vocabulary, 0.1d);
 
         List<SearchResult> results = lexicalSearcher.searchDetailed("java");
         assertEquals(1, results.size(),
@@ -374,12 +376,12 @@ class FieldAwareVectorIndexingTest {
         indexer.index(otherDoc);
 
         final Searcher lexicalSearcher = Searchers.lexical(
-                invertedIndex, corpus, tokenizer, normalizer,
-                Rankers.tfIdf(corpus, invertedIndex));
+                invertedIndex.snapshot(), corpus.snapshot(), tokenizer, normalizer,
+                Rankers.tfIdf(corpus.snapshot(), invertedIndex.snapshot()));
 
         final Searcher vectorSearcher = Searchers.vector(
                 tokenizer, normalizer, documentWeighter, vectorizer,
-                Similarities.sparseCosine(), corpus, documentVectorStore, vocabulary, 0.1d);
+                Similarities.sparseCosine(), corpus.snapshot(), documentVectorStore, vocabulary, 0.1d);
 
         List<SearchResult> results = lexicalSearcher.searchDetailed("java");
         assertFalse(results.isEmpty(),
@@ -459,7 +461,7 @@ class FieldAwareVectorIndexingTest {
 
         final Searcher vectorSearcher = Searchers.vector(
                 tokenizer, normalizer, documentWeighter, vectorizer,
-                Similarities.sparseCosine(), corpus, documentVectorStore, vocabulary, 0.1d);
+                Similarities.sparseCosine(), corpus.snapshot(), documentVectorStore, vocabulary, 0.1d);
 
         List<SearchResult> results = vectorSearcher.searchDetailed("modern");
         assertFalse(results.isEmpty(),

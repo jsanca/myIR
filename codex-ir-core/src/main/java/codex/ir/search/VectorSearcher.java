@@ -1,7 +1,7 @@
 package codex.ir.search;
 
 import codex.ir.Document;
-import codex.ir.corpus.Corpus;
+import codex.ir.corpus.CorpusSnapshot;
 import codex.ir.corpus.vector.Vocabulary;
 import codex.ir.normalizer.Normalizer;
 import codex.ir.tokenizer.Tokenizer;
@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 public class VectorSearcher implements Searcher {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VectorSearcher.class);
-    private final Corpus corpus;
+    private final CorpusSnapshot corpus;
     private final Vocabulary vocabulary;
     private final Vectorizer<SparseDocumentVector> sparseVectorizer;
     private final DocumentWeighter documentWeighter;
@@ -27,7 +27,7 @@ public class VectorSearcher implements Searcher {
     private final Similarity<SparseDocumentVector> similarity;
     private final double threshold;
 
-    public VectorSearcher(final Corpus corpus,
+    public VectorSearcher(final CorpusSnapshot corpus,
                           final Vocabulary vocabulary,
                           final Vectorizer<SparseDocumentVector> sparseVectorizer,
                           final DocumentWeighter documentWeighter,
@@ -37,7 +37,7 @@ public class VectorSearcher implements Searcher {
                           final Similarity<SparseDocumentVector> similarity,
                           final double threshold) {
 
-        this.corpus = Objects.requireNonNull(corpus, "Corpus should be non null");
+        this.corpus = Objects.requireNonNull(corpus, "CorpusSnapshot should be non null");
         this.vocabulary = Objects.requireNonNull(vocabulary, "Vocabulary should be non null");
         this.sparseVectorizer = Objects.requireNonNull(sparseVectorizer, "SparseVectorizer should be non null");
         this.documentWeighter = Objects.requireNonNull(documentWeighter, "DocumentWeighter should be non null");

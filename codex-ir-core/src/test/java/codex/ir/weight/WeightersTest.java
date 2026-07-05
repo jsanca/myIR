@@ -38,7 +38,7 @@ class WeightersTest {
         indexer.index(doc2);
         indexer.index(doc3);
 
-        final Map<String, Double> weights = weighter.weigh(corpus, doc1);
+        final Map<String, Double> weights = weighter.weigh(corpus.snapshot(),doc1);
 
         assertFalse(weights.isEmpty(), "Expected TF-IDF weights to be generated for doc1");
         assertTrue(weights.containsKey("java"), "Expected TF-IDF weights to contain 'java'");
@@ -63,7 +63,7 @@ class WeightersTest {
         indexer.index(repeatedTermDocument);
         indexer.index(singleOccurrenceDocument);
 
-        final Map<String, Double> repeatedWeights = weighter.weigh(corpus, repeatedTermDocument);
+        final Map<String, Double> repeatedWeights = weighter.weigh(corpus.snapshot(),repeatedTermDocument);
         final double javaWeight = repeatedWeights.get("java");
 
         assertTrue(javaWeight > 1.0,
@@ -85,7 +85,7 @@ class WeightersTest {
                 .normalizedContent("   ")
                 .build();
 
-        final Map<String, Double> weights = weighter.weigh(corpus, blankDocument);
+        final Map<String, Double> weights = weighter.weigh(corpus.snapshot(),blankDocument);
 
         assertTrue(weights.isEmpty(), "Expected blank normalized content to produce no TF-IDF weights");
     }
@@ -104,7 +104,7 @@ class WeightersTest {
 
         indexer.index(indexedDocument);
 
-        final Map<String, Double> weights = weighter.weigh(corpus, queryLikeDocument);
+        final Map<String, Double> weights = weighter.weigh(corpus.snapshot(),queryLikeDocument);
 
         assertTrue(weights.containsKey("java"), "Expected indexed term 'java' to have a TF-IDF weight");
         assertFalse(weights.containsKey("phantomterm"),

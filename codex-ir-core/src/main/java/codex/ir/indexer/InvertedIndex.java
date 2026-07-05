@@ -45,4 +45,18 @@ public interface InvertedIndex {
      * Useful for debugging and experimentation.
      */
     Map<String, List<Posting>> asMap();
+
+    /**
+     * Returns an immutable snapshot of the current index state.
+     *
+     * <p>The snapshot captures all postings at the moment of the call. Subsequent calls to
+     * {@link #add} do not affect the returned snapshot.</p>
+     *
+     * <p>Callers should take a snapshot after completing an ingestion round and pass it to
+     * read-path components ({@link codex.ir.ranking.Ranker},
+     * {@link codex.ir.search.SimpleSearcher}) rather than passing the live index directly.</p>
+     *
+     * @return immutable view of the index at this instant
+     */
+    IndexSnapshot snapshot();
 }

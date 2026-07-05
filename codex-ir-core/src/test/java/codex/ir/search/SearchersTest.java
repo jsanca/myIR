@@ -31,16 +31,16 @@ class SearchersTest {
         final Corpus corpus = Corpora.inMemory();
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
-        final Ranker ranker = Rankers.tfIdf(corpus, invertedIndex);
-
-        final Searcher searcher = Searchers.lexical(invertedIndex, corpus, tokenizer, normalizer, ranker);
-        assertNotNull(searcher, "Expected Searchers.lexical to return a non-null Searcher");
 
         final Document doc = Document.builder()
                 .id("doc1")
                 .rawContent("java search engine")
                 .build();
         indexer.index(doc);
+
+        final Ranker ranker = Rankers.tfIdf(corpus.snapshot(), invertedIndex.snapshot());
+        final Searcher searcher = Searchers.lexical(invertedIndex.snapshot(), corpus.snapshot(), tokenizer, normalizer, ranker);
+        assertNotNull(searcher, "Expected Searchers.lexical to return a non-null Searcher");
 
         final List<SearchResult> results = searcher.searchDetailed("search");
         assertFalse(results.isEmpty(), "Expected lexical searcher to find matching documents");
@@ -54,7 +54,7 @@ class SearchersTest {
         final Corpus corpus = Corpora.inMemory();
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final Ranker ranker = Rankers.binary();
-        final Searcher searcher = Searchers.lexical(invertedIndex, corpus, tokenizer, normalizer, ranker);
+        final Searcher searcher = Searchers.lexical(invertedIndex.snapshot(), corpus.snapshot(), tokenizer, normalizer, ranker);
 
         final List<SearchResult> results = searcher.searchDetailed(null);
 
@@ -69,7 +69,7 @@ class SearchersTest {
         final Corpus corpus = Corpora.inMemory();
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final Ranker ranker = Rankers.binary();
-        final Searcher searcher = Searchers.lexical(invertedIndex, corpus, tokenizer, normalizer, ranker);
+        final Searcher searcher = Searchers.lexical(invertedIndex.snapshot(), corpus.snapshot(), tokenizer, normalizer, ranker);
 
         final List<SearchResult> blankResults = searcher.searchDetailed("");
         assertTrue(blankResults.isEmpty(),

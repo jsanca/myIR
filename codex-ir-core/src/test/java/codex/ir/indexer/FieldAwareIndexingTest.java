@@ -37,8 +37,6 @@ class FieldAwareIndexingTest {
         final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
-        final Ranker ranker = Rankers.tfIdf(corpus, invertedIndex);
-        final Searcher searcher = Searchers.lexical(invertedIndex, corpus, tokenizer, normalizer, ranker);
 
         final Document doc = Document.builder()
                 .id("doc1")
@@ -46,6 +44,9 @@ class FieldAwareIndexingTest {
                 .build();
 
         indexer.index(doc);
+
+        final Ranker ranker = Rankers.tfIdf(corpus.snapshot(), invertedIndex.snapshot());
+        final Searcher searcher = Searchers.lexical(invertedIndex.snapshot(), corpus.snapshot(), tokenizer, normalizer, ranker);
 
         final List<SearchResult> results = searcher.searchDetailed("search");
         assertFalse(results.isEmpty(), "Expected body-only document to be searchable");
@@ -59,8 +60,6 @@ class FieldAwareIndexingTest {
         final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
-        final Ranker ranker = Rankers.tfIdf(corpus, invertedIndex);
-        final Searcher searcher = Searchers.lexical(invertedIndex, corpus, tokenizer, normalizer, ranker);
 
         final Document doc = Document.builder()
                 .id("doc1")
@@ -69,6 +68,9 @@ class FieldAwareIndexingTest {
                 .build();
 
         indexer.index(doc);
+
+        final Ranker ranker = Rankers.tfIdf(corpus.snapshot(), invertedIndex.snapshot());
+        final Searcher searcher = Searchers.lexical(invertedIndex.snapshot(), corpus.snapshot(), tokenizer, normalizer, ranker);
 
         List<SearchResult> results = searcher.searchDetailed("programming");
         assertFalse(results.isEmpty(), "Expected term from title field to be searchable");
@@ -86,8 +88,6 @@ class FieldAwareIndexingTest {
         final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
-        final Ranker ranker = Rankers.tfIdf(corpus, invertedIndex);
-        final Searcher searcher = Searchers.lexical(invertedIndex, corpus, tokenizer, normalizer, ranker);
 
         final Document doc = Document.builder()
                 .id("doc1")
@@ -96,6 +96,9 @@ class FieldAwareIndexingTest {
                 .build();
 
         indexer.index(doc);
+
+        final Ranker ranker = Rankers.tfIdf(corpus.snapshot(), invertedIndex.snapshot());
+        final Searcher searcher = Searchers.lexical(invertedIndex.snapshot(), corpus.snapshot(), tokenizer, normalizer, ranker);
 
         final List<SearchResult> results = searcher.searchDetailed("chromodynamics");
         assertFalse(results.isEmpty(),
@@ -110,8 +113,6 @@ class FieldAwareIndexingTest {
         final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
-        final Ranker ranker = Rankers.tfIdf(corpus, invertedIndex);
-        final Searcher searcher = Searchers.lexical(invertedIndex, corpus, tokenizer, normalizer, ranker);
 
         final Document doc = Document.builder()
                 .id("doc1")
@@ -121,6 +122,9 @@ class FieldAwareIndexingTest {
                 .build();
 
         indexer.index(doc);
+
+        final Ranker ranker = Rankers.tfIdf(corpus.snapshot(), invertedIndex.snapshot());
+        final Searcher searcher = Searchers.lexical(invertedIndex.snapshot(), corpus.snapshot(), tokenizer, normalizer, ranker);
 
         final List<SearchResult> results = searcher.searchDetailed("fallback");
         assertFalse(results.isEmpty(),
@@ -135,8 +139,6 @@ class FieldAwareIndexingTest {
         final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
-        final Ranker ranker = Rankers.tfIdf(corpus, invertedIndex);
-        final Searcher searcher = Searchers.lexical(invertedIndex, corpus, tokenizer, normalizer, ranker);
 
         final Document doc = Document.builder()
                 .id("doc1")
@@ -146,6 +148,9 @@ class FieldAwareIndexingTest {
                 .build();
 
         indexer.index(doc);
+
+        final Ranker ranker = Rankers.tfIdf(corpus.snapshot(), invertedIndex.snapshot());
+        final Searcher searcher = Searchers.lexical(invertedIndex.snapshot(), corpus.snapshot(), tokenizer, normalizer, ranker);
 
         final List<SearchResult> results = searcher.searchDetailed("distributed");
         assertFalse(results.isEmpty(),
@@ -160,8 +165,6 @@ class FieldAwareIndexingTest {
         final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
-        final Ranker ranker = Rankers.tfIdf(corpus, invertedIndex);
-        final Searcher searcher = Searchers.lexical(invertedIndex, corpus, tokenizer, normalizer, ranker);
 
         final Document doc = Document.builder()
                 .id("doc1")
@@ -170,6 +173,9 @@ class FieldAwareIndexingTest {
                 .build();
 
         indexer.index(doc);
+
+        final Ranker ranker = Rankers.tfIdf(corpus.snapshot(), invertedIndex.snapshot());
+        final Searcher searcher = Searchers.lexical(invertedIndex.snapshot(), corpus.snapshot(), tokenizer, normalizer, ranker);
 
         final List<SearchResult> results = searcher.searchDetailed("threads");
         assertFalse(results.isEmpty(),

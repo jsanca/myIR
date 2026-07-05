@@ -5,6 +5,7 @@ import codex.ir.canonicalizer.UriCanonicalizer;
 import codex.ir.canonicalizer.UriCanonicalizers;
 import codex.ir.corpus.Corpora;
 import codex.ir.corpus.Corpus;
+import codex.ir.corpus.CorpusSnapshot;
 import codex.ir.corpus.vector.Vocabularies;
 import codex.ir.corpus.vector.Vocabulary;
 import codex.ir.indexer.*;
@@ -49,7 +50,6 @@ public class Main {
         final Corpus corpus = Corpora.inMemory();
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
-        final Ranker ranker = Rankers.tfIdf(corpus, invertedIndex);
 
         final String text1 = "Java is a programming language";
         final String text2 = "A search engine uses an inverted index";
@@ -79,7 +79,10 @@ public class Main {
             indexer.index(document);
         }
 
-        final Searcher searcher = Searchers.lexical(invertedIndex, corpus, tokenizer, normalizer, ranker);
+        final CorpusSnapshot corpusSnapshot = corpus.snapshot();
+        final IndexSnapshot indexSnapshot = invertedIndex.snapshot();
+        final Ranker ranker = Rankers.tfIdf(corpusSnapshot, indexSnapshot);
+        final Searcher searcher = Searchers.lexical(indexSnapshot, corpusSnapshot, tokenizer, normalizer, ranker);
 
         System.out.println("How many docs are in my corpus: " + corpus.size());
 
@@ -99,7 +102,6 @@ public class Main {
         final Vectorizer<SparseDocumentVector>  sparseVectorizer = Vectorizers.sparse(vocabulary);
         final DocumentVectorStore documentVectorStore = VectorStores.inMemory();
         final Indexer indexer = Indexers.lexicalAndVector(invertedIndex, tokenizer, normalizer, documentWeighter, sparseVectorizer, documentVectorStore, corpus);
-        final Ranker ranker = Rankers.bm25(corpus, invertedIndex);
         final UriCanonicalizer uriCanonicalizer = dotCmsCanonicalizer();
 
         final WebCrawlingConfig config = WebCrawlingConfig.builder()
@@ -130,7 +132,10 @@ public class Main {
 
             ingestionService.ingest(documentSource, documentMapper, indexer);
 
-            final Searcher searcher = Searchers.lexical(invertedIndex, corpus, tokenizer, normalizer, ranker);
+            final CorpusSnapshot corpusSnap = corpus.snapshot();
+            final IndexSnapshot indexSnap = invertedIndex.snapshot();
+            final Ranker ranker = Rankers.bm25(corpusSnap, indexSnap);
+            final Searcher searcher = Searchers.lexical(indexSnap, corpusSnap, tokenizer, normalizer, ranker);
             managedInstances.add(searcher);
             managedInstances.add(crawlerRuntime);
 
@@ -194,7 +199,7 @@ public class Main {
             final Searcher searcher = Searchers.vector(
                     tokenizer, normalizer, documentWeighter,
                     Vectorizers.sparse(vocabulary), Similarities.sparseCosine(),
-                    corpus, documentVectorStore, vocabulary, threshold
+                    corpus.snapshot(), documentVectorStore, vocabulary, threshold
             );
 
             managedInstances.add(searcher);

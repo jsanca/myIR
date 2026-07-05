@@ -2,6 +2,9 @@ package codex.ir.indexer;
 
 import codex.ir.Document;
 
+import java.util.List;
+import java.util.Objects;
+
 /**
  * Coordinates the process of taking a Document, analyzing its text,
  * and inserting the resulting terms into an InvertedIndex.
@@ -26,4 +29,21 @@ public interface Indexer {
      * @param index the inverted index where terms will be stored
      */
     void index(Document document);
+
+    /**
+     * Indexes a list of documents.
+     * <p>
+     * The default implementation calls {@link #index(Document)} sequentially for each
+     * document. Batch-aware implementations — such as those returned by
+     * {@link Indexers#batchLexicalAndVector} — override this method to build all
+     * lexical postings first, take a single corpus snapshot, and then vectorize every
+     * document against that shared snapshot. This ensures IDF values reflect the full
+     * batch rather than the corpus state at each individual document's insertion time.
+     *
+     * @param documents the documents to index; must not be null
+     */
+    default void indexAll(final List<Document> documents) {
+        Objects.requireNonNull(documents, "documents cannot be null");
+        documents.forEach(this::index);
+    }
 }

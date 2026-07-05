@@ -5,6 +5,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class InvertedIndexes {
 
+    private InvertedIndexes() {}
+
+
 
     public static InvertedIndex inMemory() {
 
@@ -55,13 +58,40 @@ public final class InvertedIndexes {
 
         @Override
         public Map<String, List<Posting>> asMap() {
-            final Map<String, List<Posting>> snapshot = new HashMap<>();
+            final Map<String, List<Posting>> result = new HashMap<>();
 
             for (final Map.Entry<String, Posting.Accumulator> entry : termAccumulatorMap.entrySet()) {
-                snapshot.put(entry.getKey(), List.copyOf(entry.getValue().values()));
+                result.put(entry.getKey(), List.copyOf(entry.getValue().values()));
             }
 
-            return Collections.unmodifiableMap(snapshot);
+            return Collections.unmodifiableMap(result);
+        }
+
+        @Override
+        public IndexSnapshot snapshot() {
+            return new InMemoryIndexSnapshot(asMap());
+        }
+    }
+
+    private static final class InMemoryIndexSnapshot implements IndexSnapshot {
+
+        private final Map<String, List<Posting>> index;
+
+        private InMemoryIndexSnapshot(final Map<String, List<Posting>> index) {
+            this.index = Objects.requireNonNull(index);
+        }
+
+        @Override
+        public List<Posting> getPostings(final String term) {
+            if (term == null || term.isBlank()) {
+                return List.of();
+            }
+            return index.getOrDefault(term, List.of());
+        }
+
+        @Override
+        public Map<String, List<Posting>> asMap() {
+            return index;
         }
     }
 }

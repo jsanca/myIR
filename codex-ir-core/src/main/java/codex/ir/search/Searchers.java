@@ -1,8 +1,8 @@
 package codex.ir.search;
 
-import codex.ir.corpus.Corpus;
+import codex.ir.corpus.CorpusSnapshot;
 import codex.ir.corpus.vector.Vocabulary;
-import codex.ir.indexer.InvertedIndex;
+import codex.ir.indexer.IndexSnapshot;
 import codex.ir.normalizer.Normalizer;
 import codex.ir.ranking.Ranker;
 import codex.ir.tokenizer.Tokenizer;
@@ -18,8 +18,8 @@ public final class Searchers {
 
     private Searchers() {}
 
-    public static Searcher lexical(final InvertedIndex invertedIndex,
-                                   final Corpus corpus,
+    public static Searcher lexical(final IndexSnapshot invertedIndex,
+                                   final CorpusSnapshot corpus,
                                    final Tokenizer tokenizer,
                                    final Normalizer normalizer,
                                    final Ranker ranker) {
@@ -32,7 +32,7 @@ public final class Searchers {
                                   final DocumentWeighter documentWeighter,
                                   final Vectorizer<SparseDocumentVector> vectorizer,
                                   final Similarity<SparseDocumentVector> similarity,
-                                  final Corpus corpus,
+                                  final CorpusSnapshot corpus,
                                   final DocumentVectorStore documentVectorStore,
                                   final Vocabulary vocabulary,
                                   final double threshold) {

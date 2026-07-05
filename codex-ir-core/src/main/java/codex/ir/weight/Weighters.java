@@ -1,7 +1,7 @@
 package codex.ir.weight;
 
 import codex.ir.Document;
-import codex.ir.corpus.Corpus;
+import codex.ir.corpus.CorpusSnapshot;
 import codex.ir.indexer.InvertedIndex;
 import codex.ir.tokenizer.Tokenizer;
 import codex.ir.tokenizer.Tokenizers;
@@ -77,8 +77,8 @@ public final class Weighters {
         }
 
         @Override
-        public Map<String, Double> weigh(final Corpus corpus, final Document document) {
-            Objects.requireNonNull(corpus, "corpus must not be null");
+        public Map<String, Double> weigh(final CorpusSnapshot snapshot, final Document document) {
+            Objects.requireNonNull(snapshot, "snapshot must not be null");
             Objects.requireNonNull(document, "document must not be null");
 
             final String normalizedContent = document.normalizedContent();
@@ -116,8 +116,8 @@ public final class Weighters {
         }
 
         @Override
-        public Map<String, Double> weigh(final Corpus corpus, final Document document) {
-            Objects.requireNonNull(corpus, "corpus must not be null");
+        public Map<String, Double> weigh(final CorpusSnapshot snapshot, final Document document) {
+            Objects.requireNonNull(snapshot, "snapshot must not be null");
             Objects.requireNonNull(document, "document must not be null");
 
             final String normalizedContent = document.normalizedContent();
@@ -138,7 +138,7 @@ public final class Weighters {
                 return Map.of();
             }
 
-            final int corpusSize = corpus.statistics().documentCount();
+            final int corpusSize = snapshot.statistics().documentCount();
             if (corpusSize <= 0) {
                 return Map.of();
             }

@@ -29,7 +29,7 @@ class DocumentWeighterTest {
         );
 
         final DocumentWeighter weighter = Weighters.termFrequency();
-        final Map<String, Double> weights = weighter.weigh(corpus, document);
+        final Map<String, Double> weights = weighter.weigh(corpus.snapshot(), document);
 
         assertEquals(3, weights.size());
         assertEquals(2.0d, weights.get("java"));
@@ -49,7 +49,7 @@ class DocumentWeighterTest {
         );
 
         final DocumentWeighter weighter = Weighters.termFrequency();
-        final Map<String, Double> weights = weighter.weigh(corpus, document);
+        final Map<String, Double> weights = weighter.weigh(corpus.snapshot(), document);
 
         assertTrue(weights.isEmpty());
     }
@@ -67,7 +67,7 @@ class DocumentWeighterTest {
 
         final Tokenizer pipeTokenizer = content -> java.util.List.of(content.split("\\|"));
         final DocumentWeighter weighter = Weighters.termFrequency(pipeTokenizer);
-        final Map<String, Double> weights = weighter.weigh(corpus, document);
+        final Map<String, Double> weights = weighter.weigh(corpus.snapshot(), document);
 
         assertEquals(2.0d, weights.get("alpha"));
         assertEquals(1.0d, weights.get("beta"));
@@ -86,7 +86,7 @@ class DocumentWeighterTest {
 
         final DocumentWeighter weighter = Weighters.termFrequency();
 
-        assertThrows(NullPointerException.class, () -> weighter.weigh(null, document));
+        assertThrows(NullPointerException.class, () -> weighter.weigh((codex.ir.corpus.CorpusSnapshot) null, document));
     }
 
     @Test
@@ -94,6 +94,6 @@ class DocumentWeighterTest {
         final Corpus corpus = Corpora.inMemory();
         final DocumentWeighter weighter = Weighters.termFrequency();
 
-        assertThrows(NullPointerException.class, () -> weighter.weigh(corpus, null));
+        assertThrows(NullPointerException.class, () -> weighter.weigh(corpus.snapshot(), null));
     }
 }

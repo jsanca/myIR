@@ -69,4 +69,18 @@ public interface Corpus {
      * @return a corpus stats
      */
     CorpusStatistics statistics();
+
+    /**
+     * Returns an immutable snapshot of the current corpus state.
+     *
+     * <p>The snapshot captures the document collection and corpus statistics at the moment of
+     * the call. Subsequent writes to this corpus do not affect the returned snapshot.</p>
+     *
+     * <p>Callers should take a snapshot after completing an ingestion round and pass it to
+     * read-path components ({@link codex.ir.ranking.Ranker}, {@link codex.ir.search.Searcher})
+     * rather than passing the live corpus directly.</p>
+     *
+     * @return immutable view of the corpus state at this instant
+     */
+    CorpusSnapshot snapshot();
 }

@@ -6,10 +6,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Compile:** `mvn compile`
 - **All tests:** `mvn test`
-- **Single test (module-scoped):** `mvn test -pl codex-ir-core -Dtest=RankersTest` — always pass `-pl <module>` when running a single test; without it Maven scans every module in order and fails with "no tests matching" as soon as it hits a module that doesn't contain the class.
+- **Single test (module-scoped):** `mvn test -pl codex-ir-core -Dtest=codex.ir.ranking.RankersTest` — always pass `-pl <module>` and use the fully-qualified class name; without the module flag Maven scans every module and fails with "no tests matching" as soon as it hits one that doesn't contain the class.
 - **Full verification:** `mvn compile && mvn test-compile && mvn test`
 - **Requires Java 25.** Maven is pinned to source=25 target=25 in `pom.xml`. No other JDK version will work.
+- **No Maven wrapper** — install Maven directly (any recent version).
 - **Playwright prerequisite:** `npx playwright install` must be run once before any crawler demo or test that touches `WebPageFetcher`. Without browser binaries, the Playwright dependency will fail at runtime.
+
+## Running the application
+
+| Entry point | Command |
+|---|---|
+| `codex.Main` (in-memory indexing + search demos) | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.Main"` |
+| `codex.QuickDiscoveryRunner` | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.QuickDiscoveryRunner"` |
+| `codex.apps.siteexporter.SiteExporterCommand` | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.apps.siteexporter.SiteExporterCommand" -Dexec.args="--url https://example.com/"` |
+
+### SiteExporter CLI flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--url <url>` | *(required unless `--from-mirror`)* | Seed URL to crawl |
+| `--from-mirror <dir>` | — | Skip crawl; read manifest from this directory |
+| `--out-dir <dir>` | `./mirror` | Directory where mirrored HTML files live or are saved |
+| `--max-pages <n>` | `100` | Maximum pages to crawl |
+| `--max-depth <n>` | `3` | Maximum crawl depth |
+| `--no-same-domain` | *(flag, off)* | Follow links to other domains |
+| `--format pdf\|markdown` | `pdf` | Output format |
+| `--output <path>` | `./output.pdf` or `./output.md` | Path for the final artifact |
 
 ## Architecture
 
@@ -142,8 +164,19 @@ Architectural decisions are captured in `docs/ADR-NNN.md`. Read the relevant ADR
 
 ## Resources
 
-- `src/main/resources/stopwords_en.txt`, `stopwords_es.txt` — used by `Normalizers`
-- `src/main/resources/logback.xml` — console logging at INFO level
+- `codex-ir-core/src/main/resources/stopwords_en.txt`, `stopwords_es.txt` — used by `Normalizers`. Resolution order: `IR_STOPWORDS_PATH` env var, then `classpath:` or `file:` prefix, falling back to `/stopwords.txt`.
+- `codex-ir-core/src/main/resources/logback.xml` — console logging at INFO level
+- HTML fixture files for web tests: `codex-ir-web/src/test/resources/fixtures/`
+- Every package has a `package-info.java` describing its purpose — read it before adding types to a new package.
+
+## Project conventions
+
+- **No CI, no pre-commit, no Makefile** — nothing to satisfy before committing.
+- **`reports/`** contains generated JSON crawl outputs — do not edit.
+- **`docs/reports/core/ENGINEERING_LOG.md`** — engineering history for the core IR engine. Read before modifying `codex-ir-core`.
+- **`docs/apps/site-exporter/ENGINEERING_LOG.md`** — engineering history for the site exporter. Read before modifying any site exporter code.
+- **`docs/tasks/`** — task specifications and test cases for major features.
+- **`module-info.java` in `codex-ir-app`** opens `codex.apps.siteexporter` to `com.fasterxml.jackson.databind` so Jackson can reflect on Builder constructors — do not remove this `opens` directive.
 
 ## Record + Builder pattern
 
@@ -200,11 +233,10 @@ Key rules:
 
 After each task, the agent must produce a structured engineering report. The report must be added to the appropriate `ENGINEERING_LOG.md` when the task belongs to a specific app or subsystem.
 
-For the site exporter app, use:
-
-```text
-docs/apps/site-exporter/ENGINEERING_LOG.md
-```
+| Subsystem | Log file |
+|---|---|
+| Core IR engine (`codex-ir-core` tasks) | `docs/reports/core/ENGINEERING_LOG.md` |
+| Site exporter app | `docs/apps/site-exporter/ENGINEERING_LOG.md` |
 
 Each task report must include the following sections:
 

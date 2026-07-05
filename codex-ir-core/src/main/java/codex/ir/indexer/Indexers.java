@@ -2,6 +2,7 @@ package codex.ir.indexer;
 
 import codex.ir.Document;
 import codex.ir.corpus.Corpus;
+import codex.ir.corpus.CorpusSnapshot;
 import codex.ir.normalizer.Normalizer;
 import codex.ir.tokenizer.Tokenizer;
 import codex.ir.vector.SparseDocumentVector;
@@ -110,6 +111,48 @@ public final class Indexers {
         return new PipelineIndexer(new DocumentPreprocessor(tokenizer, normalizer),
                 new LexicalIndexer(corpus, index),
                 new VectorIndexer(documentWeighter, sparseVectorizer, documentVectorStore, corpus));
+    }
+
+    /**
+     * Creates a batch-aware indexer that performs lexical and vector indexing with a
+     * single corpus snapshot shared across all documents in a batch.
+     * <p>
+     * When {@link Indexer#indexAll} is called, the indexer:
+     * <ol>
+     *   <li>Preprocesses every document once.</li>
+     *   <li>Lexically indexes all preprocessed documents (populates corpus and
+     *       inverted index).</li>
+     *   <li>Takes one {@link CorpusSnapshot} capturing the full batch statistics.</li>
+     *   <li>Vectorizes all documents using that shared snapshot, so every document
+     *       sees the same IDF values.</li>
+     * </ol>
+     * <p>
+     * The single-document {@link Indexer#index} method uses the incremental pipeline:
+     * lexical indexing is followed immediately by vectorization with a snapshot taken
+     * at that moment.
+     *
+     * @param index the inverted index to populate
+     * @param tokenizer the tokenizer used during preprocessing
+     * @param normalizer the normalizer used during preprocessing
+     * @param documentWeighter the component used to compute term weights
+     * @param sparseVectorizer the vectorizer used to build sparse vectors
+     * @param documentVectorStore the store where vectors will be persisted
+     * @param corpus the corpus where preprocessed documents will be stored
+     * @return a batch-aware indexer for lexical and vector indexing
+     */
+    public static Indexer batchLexicalAndVector(final InvertedIndex index,
+                                                final Tokenizer tokenizer,
+                                                final Normalizer normalizer,
+                                                final DocumentWeighter documentWeighter,
+                                                final Vectorizer<SparseDocumentVector> sparseVectorizer,
+                                                final DocumentVectorStore documentVectorStore,
+                                                final Corpus corpus) {
+
+        final DocumentPreprocessor preprocessor = new DocumentPreprocessor(tokenizer, normalizer);
+        final LexicalIndexer lexicalIndexer = new LexicalIndexer(corpus, index);
+        final VectorIndexer vectorIndexer = new VectorIndexer(
+                documentWeighter, sparseVectorizer, documentVectorStore, corpus);
+        return new BatchPipelineIndexer(preprocessor, lexicalIndexer, vectorIndexer, corpus);
     }
 
     /**
@@ -474,7 +517,7 @@ public final class Indexers {
 
             LOGGER.info("Starting vector indexing for document id={}", document.id());
 
-            final Map<String, Double> weights = this.documentWeighter.weigh(this.corpus, document);
+            final Map<String, Double> weights = this.documentWeighter.weigh(this.corpus.snapshot(), document);
             LOGGER.debug("Computed {} term weight(s) for document id={}", weights.size(), document.id());
 
             final SparseDocumentVector sparseDocumentVector = this.sparseVectorizer.vectorize(document.id(), weights);
@@ -489,7 +532,99 @@ public final class Indexers {
             Objects.requireNonNull(document, "document cannot be null");
             return document;
         }
+
+        /**
+         * Vectorizes a preprocessed document using a caller-supplied snapshot.
+         * Used by the batch pipeline to avoid per-document snapshot allocation.
+         */
+        void indexWithSnapshot(final Document document, final CorpusSnapshot corpusSnapshot) {
+            Objects.requireNonNull(document, "document cannot be null");
+            Objects.requireNonNull(corpusSnapshot, "corpusSnapshot cannot be null");
+
+            LOGGER.info("Starting vector indexing for document id={}", document.id());
+
+            final Map<String, Double> weights = this.documentWeighter.weigh(corpusSnapshot, document);
+            LOGGER.debug("Computed {} term weight(s) for document id={}", weights.size(), document.id());
+
+            final SparseDocumentVector sparseDocumentVector = this.sparseVectorizer.vectorize(document.id(), weights);
+            LOGGER.debug("Built sparse vector for document id={}", document.id());
+
+            this.documentVectorStore.save(sparseDocumentVector);
+            LOGGER.info("Finished vector indexing for document id={}", document.id());
+        }
     } // VectorIndexer
+
+    /**
+     * Batch-aware indexer that phases lexical and vector indexing to use a single
+     * corpus snapshot for the entire batch.
+     * <p>
+     * The single-document {@link #index} method delegates to an incremental
+     * {@link PipelineIndexer} for full compatibility with the existing API.
+     */
+    private static final class BatchPipelineIndexer implements Indexer {
+
+        private static final Logger LOGGER = LoggerFactory.getLogger(BatchPipelineIndexer.class);
+
+        private final PipelineIndexer singleDocIndexer;
+        private final DocumentPreprocessor documentPreprocessor;
+        private final LexicalIndexer lexicalIndexer;
+        private final VectorIndexer vectorIndexer;
+        private final Corpus corpus;
+
+        private BatchPipelineIndexer(final DocumentPreprocessor documentPreprocessor,
+                                     final LexicalIndexer lexicalIndexer,
+                                     final VectorIndexer vectorIndexer,
+                                     final Corpus corpus) {
+            this.documentPreprocessor = Objects.requireNonNull(documentPreprocessor,
+                    "documentPreprocessor cannot be null");
+            this.lexicalIndexer = Objects.requireNonNull(lexicalIndexer,
+                    "lexicalIndexer cannot be null");
+            this.vectorIndexer = Objects.requireNonNull(vectorIndexer,
+                    "vectorIndexer cannot be null");
+            this.corpus = Objects.requireNonNull(corpus, "corpus cannot be null");
+            this.singleDocIndexer = new PipelineIndexer(documentPreprocessor,
+                    List.of(lexicalIndexer, vectorIndexer));
+        }
+
+        @Override
+        public void index(final Document document) {
+            this.singleDocIndexer.index(document);
+        }
+
+        /**
+         * Batch-optimized path:
+         * <ol>
+         *   <li>Preprocess all documents.</li>
+         *   <li>Lexically index all preprocessed documents.</li>
+         *   <li>Take one {@link CorpusSnapshot} reflecting the full batch.</li>
+         *   <li>Vectorize all documents using the shared snapshot.</li>
+         * </ol>
+         */
+        @Override
+        public void indexAll(final List<Document> documents) {
+            Objects.requireNonNull(documents, "documents cannot be null");
+            if (documents.isEmpty()) {
+                return;
+            }
+
+            LOGGER.info("Starting batch indexing of {} document(s)", documents.size());
+
+            final List<Document> preprocessed = documents.stream()
+                    .map(this.documentPreprocessor::preprocess)
+                    .toList();
+            LOGGER.debug("Preprocessed {} document(s)", preprocessed.size());
+
+            preprocessed.forEach(this.lexicalIndexer::index);
+            LOGGER.debug("Lexically indexed {} document(s)", preprocessed.size());
+
+            final CorpusSnapshot corpusSnapshot = this.corpus.snapshot();
+            LOGGER.debug("Created corpus snapshot with {} document(s)", corpusSnapshot.size());
+
+            preprocessed.forEach(doc -> this.vectorIndexer.indexWithSnapshot(doc, corpusSnapshot));
+
+            LOGGER.info("Finished batch indexing of {} document(s)", preprocessed.size());
+        }
+    } // BatchPipelineIndexer
 
 } // Indexers
 

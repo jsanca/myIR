@@ -1,10 +1,9 @@
 package codex.ir.ranking;
 
 import codex.ir.Document;
-import codex.ir.corpus.Corpus;
+import codex.ir.corpus.CorpusSnapshot;
 import codex.ir.corpus.CorpusStatistics;
-import codex.ir.indexer.Indexer;
-import codex.ir.indexer.InvertedIndex;
+import codex.ir.indexer.IndexSnapshot;
 import codex.ir.indexer.Posting;
 import codex.ir.util.TermWeightingUtils;
 
@@ -55,30 +54,31 @@ public final class Rankers {
     /**
      * Creates a ranker based on the TF-IDF ranking model.
      *
-     * The returned {@link Ranker} implementation computes inverse
-     * document frequency (IDF) and uses it together with term
-     * frequency (TF) from document metadata to score documents.
+     * <p>The returned {@link Ranker} implementation computes inverse document frequency
+     * (IDF) and uses it together with term frequency (TF) from document metadata to score
+     * documents. Callers must take snapshots after ingestion is complete before constructing
+     * the ranker — the ranker sees only the state captured at snapshot time.</p>
      *
-     * @param corpus corpus providing document-level statistics
-     * @param index inverted index used to obtain document frequency
+     * @param corpus frozen corpus view providing document-level statistics
+     * @param index frozen index view used to obtain document frequency
      * @return a ranker capable of computing TF-IDF values for terms
      */
-    public static Ranker tfIdf(final Corpus corpus, final InvertedIndex index) {
+    public static Ranker tfIdf(final CorpusSnapshot corpus, final IndexSnapshot index) {
         return new TfIdfRanker(corpus, index);
     }
 
     /**
      * Creates a ranker based on the BM25 ranking model.
      *
-     * The returned {@link Ranker} implementation computes BM25 using
-     * term frequency and document length from document metadata, and
-     * document frequency from the inverted index.
+     * <p>The returned {@link Ranker} implementation computes BM25 using term frequency and
+     * document length from document metadata, and document frequency from the index snapshot.
+     * Callers must take snapshots after ingestion is complete before constructing the ranker.</p>
      *
-     * @param corpus corpus providing document-level statistics
-     * @param index inverted index used to obtain document frequency
+     * @param corpus frozen corpus view providing document-level statistics
+     * @param index frozen index view used to obtain document frequency
      * @return a ranker capable of computing BM25 values for terms
      */
-    public static Ranker bm25(final Corpus corpus, final InvertedIndex index) {
+    public static Ranker bm25(final CorpusSnapshot corpus, final IndexSnapshot index) {
         return new Bm25Ranker(corpus, index);
     }
 
@@ -133,11 +133,11 @@ public final class Rankers {
      */
     private static class TfIdfRanker implements Ranker {
 
-        private final Corpus corpus;
-        private final InvertedIndex index;
+        private final CorpusSnapshot corpus;
+        private final IndexSnapshot index;
         private final Map<String, Double> idfCache = new ConcurrentHashMap<>();
 
-        public TfIdfRanker(final Corpus corpus, final InvertedIndex index) {
+        public TfIdfRanker(final CorpusSnapshot corpus, final IndexSnapshot index) {
             this.corpus = corpus;
             this.index = index;
         }
@@ -195,7 +195,7 @@ public final class Rankers {
 
     }
 
-    private static int extractDocumentLength(final Corpus corpus, final Posting posting) {
+    private static int extractDocumentLength(final CorpusSnapshot corpus, final Posting posting) {
         final Optional<Document> documentOpt = corpus.get(posting.documentId());
         if (documentOpt.isEmpty() || documentOpt.get().metadata() == null) {
             return 0;
@@ -232,21 +232,21 @@ public final class Rankers {
         private static final double DEFAULT_K1 = 1.2;
         private static final double DEFAULT_B = 0.75;
 
-        private final Corpus corpus;
-        private final InvertedIndex index;
+        private final CorpusSnapshot corpus;
+        private final IndexSnapshot index;
         // Saturation
         private final double k1;
         // Length normalization
         private final double b;
         private final Map<String, Double> idfCache = new ConcurrentHashMap<>();
 
-        public Bm25Ranker(final Corpus corpus, final InvertedIndex index) {
+        public Bm25Ranker(final CorpusSnapshot corpus, final IndexSnapshot index) {
             this(corpus, index, DEFAULT_K1, DEFAULT_B);
         }
 
         public Bm25Ranker(
-                final Corpus corpus,
-                final InvertedIndex index,
+                final CorpusSnapshot corpus,
+                final IndexSnapshot index,
                 final double k1,
                 final double b
         ) {

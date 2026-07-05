@@ -1,891 +1,243 @@
-# myIR — Information Retrieval Engine
+# myIR — Information Retrieval Laboratory
 
-myIR is a **didactic information retrieval engine** written in Java that reconstructs the classical foundations of search engines from first principles. It has grown from a simple inverted-index toy into a broader experimentation platform covering lexical retrieval, sparse vector retrieval, concurrent web crawling, and IR system architecture.
+myIR is a Java 25 laboratory for rebuilding information-retrieval and web-ingestion systems from first principles. It combines a classical lexical engine, sparse-vector retrieval, concurrent crawling, product extraction, and a site-to-publication exporter.
 
-The project intentionally builds everything from scratch — tokenization, normalization, inverted indexes, TF-IDF, BM25, cosine similarity over sparse vectors — to deeply understand how search engines work. It does not aim to compete with Lucene or Elasticsearch; it aims to **understand and rebuild core IR ideas from first principles**.
+The project is intentionally educational, but its boundaries are designed to support serious experiments. It does not attempt to replace Lucene or Elasticsearch.
+
+## Current Capabilities
+
+- Tokenization and composable normalization for English and Spanish.
+- In-memory corpus and positional inverted index.
+- Immutable corpus and index snapshots for consistent search reads.
+- Binary, TF-IDF, and BM25 ranking.
+- Sparse vectors, vocabulary-backed dimensions, TF/TF-IDF weighting, and cosine similarity.
+- Static HTML crawling with JDK `HttpClient` and Jsoup.
+- Optional Playwright-backed dynamic page fetching.
+- Queue-based breadth-first traversal using virtual threads.
+- URI canonicalization, URL filtering, metadata extraction, and sitemap parsing.
+- Page classification and product discovery for generic and WordPress/WooCommerce pages.
+- Site mirroring with portable JSON manifests.
+- Asset download and local link rewriting for PDF publication.
+- PDF, Markdown, and EPUB publication from a new or existing mirror.
 
 ## Module Architecture
 
-The project is organized into three Maven modules, each a named JPMS module:
+The project is a three-module Maven reactor. Every module is also a named JPMS module.
 
 ```mermaid
 graph TD
-    APP["codex-ir-app<br/><i>codex.ir.app</i>"]
-    WEB["codex-ir-web<br/><i>codex.ir.web</i>"]
-    CORE["codex-ir-core<br/><i>codex.ir.core</i>"]
+    APP["codex-ir-app<br/>codex.ir.app"]
+    WEB["codex-ir-web<br/>codex.ir.web"]
+    CORE["codex-ir-core<br/>codex.ir.core"]
 
     APP --> WEB
     APP --> CORE
     WEB --> CORE
 ```
 
-| Module | JPMS Name | Role |
-|--------|-----------|------|
-| `codex-ir-core` | `codex.ir.core` | Core IR engine — tokenization, normalization, indexing, ranking, search, sparse vectors, vocabulary |
-| `codex-ir-web` | `codex.ir.web` | Web crawling, URI canonicalization, page classification, product extraction, ingestion |
-| `codex-ir-app` | `codex.ir.app` | Application entry point — demo runners, discovery workflows |
+| Maven module | JPMS module | Responsibility |
+|---|---|---|
+| `codex-ir-core` | `codex.ir.core` | Domain-neutral IR engine: documents, indexing, snapshots, ranking, search, and sparse vectors |
+| `codex-ir-web` | `codex.ir.web` | Reusable ingestion and web primitives: crawling, canonicalization, classification, metadata, and product extraction |
+| `codex-ir-app` | `codex.ir.app` | Executable demos, discovery workflows, and the site-exporter application |
 
-### Package Dependency Graph
+Dependency direction is `app -> web -> core`. Application-specific publication code stays in `codex-ir-app`; web concepts do not leak into `codex-ir-core`.
 
-```mermaid
-graph TD
-    subgraph core["codex-ir-core (codex.ir.*)"]
-        D[Document]
-        T[tokenizer]
-        N[normalizer]
-        I[indexer]
-        R[ranking]
-        S[search]
-        V[vector]
-        VS[vector.store]
-        W[weight]
-        C[concurrent]
-        CP[corpus]
-        CV[corpus.vector]
-        U[util]
-    end
+The `module-info.java` files are authoritative for JPMS visibility. In particular, fetcher implementations, crawler internals, and web utilities are not exported from `codex.ir.web`.
 
-    subgraph web["codex-ir-web (codex.ir.*)"]
-        CN[canonicalizer]
-        IG[ingestion]
-        CR[crawler]
-        CL[classifier]
-        FL[filter]
-        MD[metadata]
-        PD[product]
-        FET[fetcher]
-        WU[web.util]
-    end
+## Core Engine
 
-    subgraph app["codex-ir-app (codex)"]
-        M[Main]
-        DR[DiscoveryRunner]
-        QDR[QuickDiscoveryRunner]
-        SE[SitemapUrlExtractor]
-    end
-
-    IG --> D
-    IG --> I
-    CR --> CN
-    CR --> C
-    M --> I
-    M --> R
-    M --> S
-    M --> IG
-    M --> CR
-```
-
-## Core Package Diagrams
-
-### `codex.ir` — Document Model
+### Document Processing and Indexing
 
 ```mermaid
-classDiagram
-    class Document {
-        <<record>>
-        +String id
-        +String rawContent
-        +String normalizedContent
-        +Map~String,String~ fields
-        +DocumentMetadata metadata
-    }
-    class DocumentMetadata {
-        <<record>>
-        +String title
-        +String source
-        +Integer length
-        +Integer uniqueTerms
-        +Map~String,Integer~ termFrequencies
-        +Map~String,Object~ attributes
-    }
-    class DocumentBuilder {
-        +Builder id(String)
-        +Builder rawContent(String)
-        +Builder field(String, String)
-        +Document build()
-    }
-    Document *-- DocumentMetadata
-    Document *-- DocumentBuilder
+flowchart TD
+    INPUT["Raw Document"] --> PRE["DocumentPreprocessor"]
+    PRE --> RESOLVE["Use structured field values, or rawContent as fallback"]
+    RESOLVE --> TOK["Tokenizer + Normalizer"]
+    TOK --> META["Normalized content + derived metadata"]
+    META --> PIPE["PipelineIndexer"]
+    PIPE --> LEX["Lexical stage"]
+    PIPE --> VEC["Vector stage"]
+    LEX --> CORPUS["Mutable Corpus"]
+    LEX --> INDEX["Mutable InvertedIndex"]
+    VEC --> STORE["Vocabulary + DocumentVectorStore"]
 ```
 
-### `codex.ir.tokenizer` — Tokenization
+`Document` is the central record. It preserves raw and normalized text, structured fields, and derived `DocumentMetadata`. When fields contain usable values, preprocessing aggregates those values instead of `rawContent`; blank fields fall back to raw content.
+
+Main factory pairs include:
+
+| Contract | Factory | Implemented strategies |
+|---|---|---|
+| `Corpus` | `Corpora` | Eager or debounced in-memory statistics |
+| `InvertedIndex` | `InvertedIndexes` | Positional in-memory postings |
+| `Indexer` | `Indexers` | Lexical, vector, or combined pipeline |
+| `Tokenizer` | `Tokenizers` | Whitespace tokenization |
+| `Normalizer` | `Normalizers` | Lowercase, accent folding, punctuation trimming, stop words, chains |
+| `Ranker` | `Rankers` | Binary, TF-IDF, BM25 |
+| `Searcher` | `Searchers` | Lexical and sparse-vector search |
+| `Vocabulary` | `Vocabularies` | Shared in-memory term dimensions |
+| `Vectorizer` | `Vectorizers` | Sparse document vectors |
+| `Similarity` | `Similarities` | Sparse cosine similarity |
+| `DocumentVectorStore` | `VectorStores` | In-memory vector storage |
+| `DocumentWeighter` | `Weighters` | Term frequency and TF-IDF |
+
+### Snapshot Read Boundary
+
+Ingestion writes to mutable `Corpus` and `InvertedIndex` instances. Search and ranking consume immutable point-in-time views:
 
 ```mermaid
-classDiagram
-    class Tokenizer {
-        <<interface>>
-        +List~String~ tokenize(String text)
-    }
-    class Tokenizers {
-        <<factory>>
-        +Tokenizer whitespace()$ Tokenizer
-    }
-    Tokenizer <|.. WhitespaceTokenizer : implements
-    Tokenizers ..> Tokenizer : creates
+flowchart LR
+    INGEST["Indexing round"] --> CORPUS["Corpus"]
+    INGEST --> INDEX["InvertedIndex"]
+    CORPUS --> CS["CorpusSnapshot"]
+    INDEX --> IS["IndexSnapshot"]
+    CS --> RANK["Ranker"]
+    IS --> RANK
+    CS --> SEARCH["Searcher"]
+    IS --> SEARCH
 ```
 
-### `codex.ir.normalizer` — Normalization
+This makes publication of a search-visible state explicit and prevents readers from observing a partially updated index.
+
+### Retrieval Paths
+
+Lexical retrieval tokenizes and normalizes a query, resolves postings from an `IndexSnapshot`, scores matching documents with binary, TF-IDF, or BM25 ranking, and returns descending `SearchResult` values.
+
+Vector retrieval weighs normalized query terms, creates a sparse query vector using the shared vocabulary, compares it with vectors in `DocumentVectorStore`, and returns matches above the configured similarity threshold.
+
+All core storage remains in memory by design.
+
+## Web Ingestion
+
+`codex-ir-web` exposes reusable crawling and extraction contracts while keeping implementations under internal, non-exported packages.
 
 ```mermaid
-classDiagram
-    class Normalizer {
-        <<interface>>
-        +String normalize(String token)
-        +List~String~ normalizeAll(List~String~ tokens)
-    }
-    class Normalizers {
-        <<factory>>
-        +Normalizer basic()$
-        +Normalizer lowercase()$
-        +Normalizer accentFolding()$
-        +Normalizer stopWords(Set~String~)$
-        +Normalizer english()$
-        +Normalizer spanish()$
-        +Normalizer chain(Normalizer...)$
-    }
-    Normalizer <|.. BasicNormalizer : implements
-    Normalizer <|.. LowercaseNormalizer : implements
-    Normalizer <|.. AccentFoldingNormalizer : implements
-    Normalizer <|.. StopWordNormalizer : implements
-    Normalizers ..> Normalizer : creates
+flowchart TD
+    SEED["Seed URI(s)"] --> CANON["UriCanonicalizer"]
+    CANON --> STRATEGY["WebPageSourceStrategy"]
+    STRATEGY --> STATIC["Static HTML fetcher"]
+    STRATEGY -. optional .-> DYNAMIC["Playwright dynamic fetcher"]
+    STATIC --> PAGE["WebPage"]
+    DYNAMIC --> PAGE
+    PAGE --> META["Metadata + classification"]
+    PAGE --> PRODUCT["Product discovery"]
+    PAGE --> MAP["DocumentMapper"]
+    MAP --> IR["Core Indexer"]
 ```
 
-### `codex.ir.concurrent` — Concurrency Utilities
+The default traversal is queue-based breadth-first crawling with configurable depth, page count, domain policy, request delay, concurrency, content types, timeouts, and path/domain restrictions. Sitemap and robots parsing are implemented as reusable crawler internals. The site-exporter command currently starts from normal site traversal; it does not automatically switch to sitemap discovery.
+
+Static fetching is the default path. `WebPageFetchers.dynamicHtml()` provides Playwright rendering, but applications must select that fetcher explicitly.
+
+## Site Exporter
+
+The site exporter lives under `codex.apps.siteexporter` because it is an application workflow, not reusable IR or crawler infrastructure.
 
 ```mermaid
-classDiagram
-    class VTExecutor {
-        <<interface>>
-        +void execute(Runnable task)
-        +void shutdown()
-    }
-    class VTConfig {
-        <<record>>
-        +int maxConcurrent
-    }
-    class VTExecutors {
-        <<factory>>
-        +VTExecutor create(VTConfig)$
-    }
-    class Debouncer {
-        +void call(String key, Runnable action)
-        +void shutdown()
-    }
-    VTExecutors ..> VTExecutor : creates
-    VTExecutor ..> VTConfig : configured by
+flowchart LR
+    SOURCE["Crawl or existing mirror"] --> MIRROR["HTML mirror"]
+    MIRROR --> MANIFEST["mirror-manifest.json"]
+    MANIFEST --> DRIVER["PublicationDriver"]
+    DRIVER --> PDF["PDF"]
+    DRIVER --> MD["Markdown"]
+    DRIVER --> EPUB["EPUB 3"]
+    MIRROR --> ASSETS["Assets + link rewriting"]
+    ASSETS --> PDF
 ```
 
-### `codex.ir.corpus` — Document Corpus
+### Mirror Contract
 
-```mermaid
-classDiagram
-    class Corpus {
-        <<interface>>
-        +void add(Document doc)
-        +Document get(String id)
-        +int size()
-        +CorpusStatistics statistics()
-    }
-    class Corpora {
-        <<factory>>
-        +Corpus inMemory()$
-        +Corpus inMemoryWithDebouncedStats()$
-    }
-    class CorpusStatistics {
-        <<record>>
-        +int documentCount
-        +long totalLength
-        +double averageDocumentLength
-    }
-    Corpus <|.. InMemoryCorpus : implements
-    Corpora ..> Corpus : creates
-    Corpus ..> CorpusStatistics : exposes
-```
+`SiteMirrorService` writes one local HTML file per successful page and records every processed page in `mirror-manifest.json`. The manifest is read and written with Jackson through `ManifestReader` and `ManifestWriter`.
 
-### `codex.ir.corpus.vector` — Vocabulary
+Important manifest guarantees:
 
-```mermaid
-classDiagram
-    class Vocabulary {
-        <<interface>>
-        +int dimension(String term)
-        +String term(int dimension)
-        +int size()
-    }
-    class Vocabularies {
-        <<factory>>
-        +Vocabulary inMemory()$
-    }
-    Vocabulary <|.. InMemoryVocabulary : implements
-    Vocabularies ..> Vocabulary : creates
-```
+- `localHtmlPath` is relative to the manifest directory and uses portable `/` separators.
+- Successful entries resolve to local HTML files.
+- Failed writes remain visible as failed entries.
+- Counts are derived from the page list when the manifest is built or read.
+- `depth` remains `null` when the traversal source does not expose depth.
+- `discoveredOrder` provides deterministic publication order for a given source emission order.
 
-### `codex.ir.indexer` — Indexing Pipeline
+### Publication Formats
 
-```mermaid
-classDiagram
-    class Indexer {
-        <<interface>>
-        +void index(Document doc, Corpus corpus)
-    }
-    class Indexers {
-        <<factory>>
-        +Indexer lexical(InvertedIndex)$
-        +Indexer vector(Vocabulary, DocumentVectorStore)$
-        +Indexer lexicalAndVector(InvertedIndex, Vocabulary, DocumentVectorStore)$
-    }
-    class InvertedIndex {
-        <<interface>>
-        +void add(String term, String docId, int position)
-        +List~Posting~ getPostings(String term)
-        +int documentFrequency(String term)
-    }
-    class InvertedIndexes {
-        <<factory>>
-        +InvertedIndex inMemory()$
-    }
-    class Posting {
-        <<record>>
-        +String docId
-        +int termFrequency
-        +List~Integer~ positions
-    }
-    Indexer <|.. LexicalIndexer : implements
-    Indexer <|.. VectorIndexer : implements
-    Indexer <|.. PipelineIndexer : implements
-    Indexers ..> Indexer : creates
-    InvertedIndex ..> Posting : contains
-    InvertedIndexes ..> InvertedIndex : creates
-```
+| Format | Driver | Asset processing | Current behavior |
+|---|---|---|---|
+| PDF | `PdfPublicationDriver` | Yes | Downloads assets, rewrites local links, renders pages with OpenHTMLToPDF, and merges them with PDFBox |
+| Markdown | `MarkdownPublicationDriver` | No | Extracts readable text into one `.md` document and optional per-page Markdown files |
+| EPUB | `EpubPublicationDriver` | No | Produces an EPUB 3 archive with navigation and ordered XHTML chapters using `java.util.zip` |
 
-### `codex.ir.ranking` — Ranking Strategies
+The PDF path detects pdf2htmlEX output and routes it through a reader-oriented extraction step before rendering. Markdown and EPUB share `ReadablePageExtractor` for normal HTML and pdf2htmlEX pages.
 
-```mermaid
-classDiagram
-    class Ranker {
-        <<interface>>
-        +double idf(String term, Corpus corpus)
-        +double score(String term, Posting posting, Corpus corpus)
-    }
-    class Rankers {
-        <<factory>>
-        +Ranker binary()$
-        +Ranker tfIdf()$
-        +Ranker bm25(double k1, double b)$
-        +Ranker bm25()$
-    }
-    Ranker <|.. BinaryRanker : implements
-    Ranker <|.. TfIdfRanker : implements
-    Ranker <|.. Bm25Ranker : implements
-    Rankers ..> Ranker : creates
-```
+Current EPUB limitations: chapters are text-only, custom styling is minimal, heading hierarchy is flattened, and generated files have not yet been validated with `epubcheck`.
 
-### `codex.ir.search` — Search
-
-```mermaid
-classDiagram
-    class Searcher {
-        <<interface>>
-        +List~SearchResult~ search(String query)
-    }
-    class Searchers {
-        <<factory>>
-        +Searcher lexical(InvertedIndex, Corpus, Normalizer, Tokenizer, Ranker)$
-        +Searcher vector(Vocabulary, DocumentVectorStore, DocumentWeighter, Similarity)$
-    }
-    class SearchResult {
-        <<record>>
-        +Document document
-        +double score
-        +List~String~ matchedTerms
-    }
-    class SimpleSearcher {
-        +List~SearchResult~ search(String query)
-    }
-    class VectorSearcher {
-        +List~SearchResult~ search(String query)
-    }
-    Searcher <|.. SimpleSearcher : implements
-    Searcher <|.. VectorSearcher : implements
-    Searchers ..> Searcher : creates
-    SearchResult ..> Document : wraps
-```
-
-### `codex.ir.vector` — Sparse Vectors
-
-```mermaid
-classDiagram
-    class Vectorizer {
-        <<interface>>
-        +SparseDocumentVector vectorize(Map~String,Double~ termWeights)
-    }
-    class Vectorizers {
-        <<factory>>
-        +Vectorizer sparse(Vocabulary)$
-    }
-    class SparseDocumentVector {
-        <<record>>
-        +Map~Integer,Double~ weights
-        +double norm
-    }
-    class Similarity {
-        <<interface>>
-        +SimilarityResult compute(SparseDocumentVector a, SparseDocumentVector b)
-    }
-    class Similarities {
-        <<factory>>
-        +Similarity cosine()$
-    }
-    class SimilarityResult {
-        <<record>>
-        +double score
-        +List~SimilarityMatch~ matches
-    }
-    class SimilarityMatch {
-        <<record>>
-        +int dimension
-        +double weightA
-        +double weightB
-        +double contribution
-    }
-    class SparseVectorMetadata {
-        <<record>>
-        +double norm
-    }
-    Vectorizer <|.. SparseVectorizer : implements
-    Vectorizers ..> Vectorizer : creates
-    Similarity <|.. CosineSimilarity : implements
-    Similarities ..> Similarity : creates
-    Similarity ..> SimilarityResult : produces
-    SimilarityResult *-- SimilarityMatch
-    SparseDocumentVector ..> SparseVectorMetadata : uses
-```
-
-### `codex.ir.vector.store` — Vector Persistence
-
-```mermaid
-classDiagram
-    class DocumentVectorStore {
-        <<interface>>
-        +void put(String docId, SparseDocumentVector vector)
-        +SparseDocumentVector get(String docId)
-        +Collection~SparseDocumentVector~ all()
-    }
-    class VectorStores {
-        <<factory>>
-        +DocumentVectorStore inMemory()$
-    }
-    DocumentVectorStore <|.. InMemoryVectorStore : implements
-    VectorStores ..> DocumentVectorStore : creates
-    DocumentVectorStore ..> SparseDocumentVector : stores
-```
-
-### `codex.ir.weight` — Term Weighting
-
-```mermaid
-classDiagram
-    class DocumentWeighter {
-        <<interface>>
-        +Map~String,Double~ weigh(Document doc, Corpus corpus)
-    }
-    class Weighters {
-        <<factory>>
-        +DocumentWeighter termFrequency()$
-        +DocumentWeighter tfIdf()$
-    }
-    DocumentWeighter <|.. TermFrequencyWeighter : implements
-    DocumentWeighter <|.. TfIdfWeighter : implements
-    Weighters ..> DocumentWeighter : creates
-```
-
-## Web Package Diagrams
-
-### `codex.ir.canonicalizer` — URI Canonicalization
-
-```mermaid
-classDiagram
-    class UriCanonicalizer {
-        <<interface>>
-        +URI canonicalize(URI uri)
-    }
-    class UriCanonicalizers {
-        <<factory>>
-        +UriCanonicalizer webDefault()$
-    }
-    UriCanonicalizer <|.. WebDefaultUriCanonicalizer : implements
-    UriCanonicalizers ..> UriCanonicalizer : creates
-```
-
-### `codex.ir.ingestion` — Ingestion Pipeline
-
-```mermaid
-classDiagram
-    class DocumentSource~T~ {
-        <<interface>>
-        +void produce(Consumer~T~ consumer)
-    }
-    class DocumentMapper~T~ {
-        <<interface>>
-        +Document map(T source)
-    }
-    class DocumentIngestionService {
-        <<interface>>
-        +void ingest(DocumentSource~?~ source, DocumentMapper~?~ mapper, Indexer indexer)
-    }
-    class Ingestors {
-        <<factory>>
-        +DocumentIngestionService simple()$
-    }
-    class Mappers {
-        <<factory>>
-        +DocumentMapper~WebPage~ webPage()$
-    }
-    class Sources {
-        <<factory>>
-        +DocumentSource~WebPage~ siteTraversal(WebCrawlingConfig)$
-        +DocumentSource~WebPage~ sitemap(WebCrawlingConfig)$
-    }
-    class WebPage {
-        <<record>>
-        +URI uri
-        +String rawHtml
-        +String title
-        +String bodyText
-        +int statusCode
-        +Map~String,List~String~~ headers
-    }
-    class WebCrawlingConfig {
-        <<record>>
-        +int maxDepth
-        +int maxPages
-        +int concurrentFetches
-        +long politenessDelayMs
-    }
-    DocumentIngestionService ..> DocumentSource : consumes
-    DocumentIngestionService ..> DocumentMapper : uses
-    DocumentIngestionService ..> Indexer : feeds
-    Ingestors ..> DocumentIngestionService : creates
-    Mappers ..> DocumentMapper : creates
-    Sources ..> DocumentSource : creates
-```
-
-### `codex.ir.ingestion.crawler` — Web Crawler
-
-```mermaid
-classDiagram
-    class WebPageFetcher {
-        <<interface>>
-        +WebPage fetch(URI uri)
-    }
-    class WebPageFetcherRegistry {
-        <<interface>>
-        +WebPageFetcher staticFetcher()
-        +WebPageFetcher dynamicFetcher()
-    }
-    class WebPageFetcherRegistries {
-        <<factory>>
-        +WebPageFetcherRegistry simple()$
-    }
-    class WebPageFetchers {
-        <<factory>>
-        +WebPageFetcher jsoup()$
-    }
-    class WebPageSourceStrategy {
-        <<interface>>
-        +void produce(URI seed, Consumer~WebPage~ consumer)
-    }
-    class WebPageSourceStrategies {
-        <<factory>>
-        +WebPageSourceStrategy siteTraversal(WebCrawlingConfig)$
-        +WebPageSourceStrategy sitemap(WebCrawlingConfig)$
-    }
-    class VisitedUriRegistry {
-        <<interface>>
-        +boolean markVisited(URI uri)
-        +boolean isVisited(URI uri)
-    }
-    class VisitedUriRegistries {
-        <<factory>>
-        +VisitedUriRegistry inMemory()$
-    }
-    class CrawlerRuntime {
-        <<interface>>
-        +WebPageFetcherRegistry fetcherRegistry()
-        +WebPageSourceStrategy traversalStrategy()
-    }
-    class WebCrawlerRuntime {
-        +CrawlerRuntime forConfig(WebCrawlingConfig)$
-    }
-    WebPageFetcher <|.. JsoupWebPageFetcher : implements
-    WebPageFetchers ..> WebPageFetcher : creates
-    WebPageSourceStrategies ..> WebPageSourceStrategy : creates
-    VisitedUriRegistries ..> VisitedUriRegistry : creates
-    WebCrawlerRuntime ..> CrawlerRuntime : creates
-```
-
-### `codex.ir.ingestion.crawler.classifier` — Page Classification
-
-```mermaid
-classDiagram
-    class UrlClassifier {
-        <<interface>>
-        +UrlType classify(URI uri)
-    }
-    class UrlClassifiers {
-        <<factory>>
-        +UrlClassifier webDefault()$
-    }
-    class PageClassifier {
-        <<interface>>
-        +PageClassification classify(WebPage page, UrlType urlType)
-    }
-    class PageClassifiers {
-        <<factory>>
-        +PageClassifier generic()$
-        +PageClassifier wordPressWooCommerce()$
-    }
-    class UrlType {
-        <<enum>>
-        HOMEPAGE
-        PRODUCT
-        CATEGORY
-        BLOG_POST
-        STATIC_RESOURCE
-        OTHER
-    }
-    class PageClassification {
-        <<record>>
-        +UrlType refinedType
-        +UrlType urlBasedType
-        +boolean isWordPress
-        +boolean isWooCommerce
-    }
-    class ClassifiedUrl {
-        <<record>>
-        +URI uri
-        +UrlType type
-    }
-    UrlClassifier <|.. WebDefaultUrlClassifier : implements
-    UrlClassifiers ..> UrlClassifier : creates
-    PageClassifier <|.. JsoupGenericPageClassifier : implements
-    PageClassifier <|.. WordPressWooCommercePageClassifier : implements
-    PageClassifiers ..> PageClassifier : creates
-```
-
-### `codex.ir.ingestion.crawler.filter` — URL Filtering
-
-```mermaid
-classDiagram
-    class UrlFilter {
-        <<interface>>
-        +boolean accept(ClassifiedUrl url)
-    }
-    class UrlFilters {
-        <<factory>>
-        +UrlFilter acceptAll()$
-        +UrlFilter rejectAll()$
-        +UrlFilter includeTypes(UrlType...)$
-        +UrlFilter excludeTypes(UrlType...)$
-        +UrlFilter pathStartsWith(String)$
-        +UrlFilter pathMatches(String)$
-        +UrlFilter allOf(UrlFilter...)$
-        +UrlFilter anyOf(UrlFilter...)$
-    }
-    UrlFilter <|.. AcceptAllFilter : implements
-    UrlFilter <|.. IncludeTypesFilter : implements
-    UrlFilter <|.. PathFilter : implements
-    UrlFilters ..> UrlFilter : creates
-```
-
-### `codex.ir.ingestion.crawler.metadata` — Page Metadata
-
-```mermaid
-classDiagram
-    class PageMetadataExtractor {
-        <<interface>>
-        +PageMetadata extract(WebPage page)
-    }
-    class PageMetadataExtractors {
-        <<factory>>
-        +PageMetadataExtractor jsoup()$
-    }
-    class PageMetadata {
-        <<record>>
-        +String title
-        +String description
-        +URI canonicalUrl
-        +Map~String,String~ openGraph
-        +Map~String,String~ twitterCard
-        +String robotsDirectives
-        +List~String~ headings
-        +String language
-        +List~String~ jsonLdBlocks
-    }
-    PageMetadataExtractor <|.. JsoupPageMetadataExtractor : implements
-    PageMetadataExtractors ..> PageMetadataExtractor : creates
-```
-
-### `codex.ir.ingestion.crawler.product` — Product Extraction
-
-```mermaid
-classDiagram
-    class ProductDiscoverer {
-        <<interface>>
-        +ProductDiscoveryResult discover(WebPage page)
-    }
-    class ProductDiscoverers {
-        <<factory>>
-        +ProductDiscoverer jsoupBased()$
-    }
-    class ProductCardExtractor {
-        <<interface>>
-        +List~ProductCard~ extractCards(WebPage page)
-    }
-    class ProductCardExtractors {
-        <<factory>>
-        +ProductCardExtractor jsoupGeneric()$
-    }
-    class ProductDetailExtractor {
-        <<interface>>
-        +Optional~ProductDetail~ extractDetail(WebPage page)
-    }
-    class ProductDetailExtractors {
-        <<factory>>
-        +ProductDetailExtractor jsoupGeneric()$
-    }
-    class ProductCard {
-        <<record>>
-        +URI url
-        +String name
-        +Optional~ProductPrice~ price
-        +Optional~URI~ imageUrl
-    }
-    class ProductDetail {
-        <<record>>
-        +String name
-        +String sku
-        +String description
-        +List~ProductPrice~ prices
-        +List~ProductImage~ images
-        +String brand
-        +String availability
-    }
-    class ProductDiscoveryResult {
-        <<record>>
-        +URI pageUri
-        +PageClassification classification
-        +Optional~ProductDetail~ productDetail
-        +List~ProductCard~ productCards
-    }
-    class ProductPrice {
-        <<record>>
-        +BigDecimal amount
-        +String currency
-    }
-    class ProductImage {
-        <<record>>
-        +URI url
-        +String altText
-        +int order
-    }
-    ProductDiscoverer ..> ProductCardExtractor : uses
-    ProductDiscoverer ..> ProductDetailExtractor : uses
-    ProductDiscoverer ..> PageClassifier : uses
-    ProductDiscoverer ..> ProductDiscoveryResult : produces
-    ProductDiscoveryResult *-- ProductCard
-    ProductDiscoveryResult *-- ProductDetail
-    ProductDetail *-- ProductPrice
-    ProductDetail *-- ProductImage
-```
-
-## App Package
-
-### `codex` — Application Entry Points
-
-```mermaid
-classDiagram
-    class Main {
-        +void main(String[])$
-    }
-    class DiscoveryRunner {
-        +void run(String[] args)
-    }
-    class QuickDiscoveryRunner {
-        +void main(String[])$
-    }
-    class SitemapUrlExtractor {
-        +List~URI~ extractFromSitemap(URI sitemapUrl)
-    }
-    class OutputMode {
-        <<enum>>
-        CONSOLE
-        JSON
-        BOTH
-    }
-    QuickDiscoveryRunner ..> DiscoveryRunner : delegates
-    DiscoveryRunner ..> SitemapUrlExtractor : uses
-    DiscoveryRunner ..> OutputMode : configures
-```
-
-## Data Flow
-
-### Indexing Pipeline
-
-```
-Raw Document / WebPage
-        │
-        ▼
-DocumentPreprocessor
-  - resolve content (fields or rawContent)
-  - tokenize
-  - normalize (lowercase, stop-word removal, stemming)
-  - derive metadata (length, unique terms, term frequencies)
-        │
-        ▼
-    PipelineIndexer
-     ├── LexicalIndexer → InvertedIndex
-     └── VectorIndexer  → Vocabulary + DocumentVectorStore
-```
-
-### Lexical Search
-
-```
-Query
-  │
-  ▼
-Tokenizer + Normalizer
-  │
-  ▼
-InvertedIndex → Posting lists
-  │
-  ▼
-Ranker (Binary / TF-IDF / BM25)
-  │
-  ▼
-SearchResult list (sorted by descending score)
-```
-
-### Vector Search
-
-```
-Query
-  │
-  ▼
-Tokenizer + Normalizer
-  │
-  ▼
-DocumentWeighter → term weights
-  │
-  ▼
-Vectorizer → sparse query vector
-  │
-  ▼
-Similarity (cosine) × DocumentVectorStore
-  │
-  ▼
-SimilarityResult list (sorted by descending similarity)
-```
-
-### Web Crawling
-
-```
-Seed URLs
-  │
-  ▼
-UriCanonicalizer (fragment removal, lowercasing, path normalization)
-  │
-  ▼
-WebPageSourceStrategy
-  ├── SiteTraversalStrategy (BFS with depth control, politeness)
-  └── SitemapSiteTraversalStrategy (robots.txt → sitemap → URLs)
-  │
-  ▼
-WebPageFetcher (Jsoup static / Playwright dynamic)
-  │
-  ▼
-WebPage → PageClassifier → ProductDiscoverer
-  │
-  ▼
-DocumentMapper → Document → Indexer
-```
-
-## How to Run
+## Build and Test
 
 ### Prerequisites
 
-- **Java 25** — Maven is pinned to `source=25` `target=25`. No other JDK version will work.
-- **Maven** (any recent version) — the project uses standard Maven; no wrapper is checked in.
-- **Playwright** (for crawler tests only) — run `npx playwright install` once before any test that exercises `WebPageFetcher`.
-
-### Build and Test
+- Java 25.
+- Maven.
+- Playwright browser binaries only for tests or experiments that use dynamic fetching:
 
 ```shell
-# Full build
+npx playwright install
+```
+
+### Commands
+
+```shell
+# Compile the complete reactor
 mvn compile
 
-# All tests
+# Run every test
 mvn test
 
-# Single test in a specific module (avoids scanning all modules)
+# Run one core test without scanning unrelated modules
 mvn test -pl codex-ir-core -Dtest=codex.ir.ranking.RankersTest
+
+# Build an application module together with reactor dependencies
+mvn test -pl codex-ir-app -am
 
 # Full verification
 mvn compile && mvn test-compile && mvn test
 ```
 
-### Running the Application
+When `codex-ir-core` or `codex-ir-web` has uninstalled local changes, include `-am` while working on `codex-ir-app`; otherwise Maven may resolve an older installed dependency.
 
-The main entry point is `codex.Main` in `codex-ir-app`:
+## Running Applications
 
-```shell
-mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.Main"
-```
+### IR and Crawling Demo
 
-This runs a demo that exercises in-memory indexing and optionally web crawling with lexical or vector search.
-
-### Quick Discovery Runner
-
-For product discovery experiments:
+The primary demo entry point is `codex.scraper.Main`. Its current configuration performs live crawling, so inspect the configured seed URL before running it.
 
 ```shell
-mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.QuickDiscoveryRunner"
+mvn exec:java -pl codex-ir-app \
+  -Dexec.mainClass="codex.scraper.Main"
 ```
+
+### Product Discovery
+
+`DiscoveryRunner` accepts explicit product/category URLs or sitemap URLs:
+
+```shell
+mvn exec:java -pl codex-ir-app \
+  -Dexec.mainClass="codex.scraper.DiscoveryRunner" \
+  -Dexec.args="--sitemap https://example.com/product-sitemap.xml --limit 50 --output both --out-dir ./reports"
+```
+
+`codex.scraper.QuickDiscoveryRunner` is an IDE-oriented wrapper with arguments embedded in source.
 
 ### Site Exporter
 
-`SiteExporterCommand` crawls a website, mirrors it to disk, and exports the result as a PDF or Markdown document. It is useful for converting documentation sites, online books, and other multi-page resources into a single readable artifact.
-
-#### Full pipeline — crawl and export
+Mirror a site and publish it as PDF:
 
 ```shell
 mvn exec:java -pl codex-ir-app \
   -Dexec.mainClass="codex.apps.siteexporter.SiteExporterCommand" \
-  -Dexec.args="--url https://example.com/"
+  -Dexec.args="--url https://example.com --out-dir ./mirror --format pdf --output ./site.pdf"
 ```
 
-This crawls `https://example.com/`, saves mirrored HTML to `./mirror/`, and writes `./output.pdf`.
-
-#### Skip the crawl — resume from an existing mirror
-
-If the site has already been mirrored, pass `--from-mirror` to skip crawling entirely and go straight to export. No network requests are made.
-
-```shell
-mvn exec:java -pl codex-ir-app \
-  -Dexec.mainClass="codex.apps.siteexporter.SiteExporterCommand" \
-  -Dexec.args="--from-mirror ./mirror --output ./site.pdf"
-```
-
-#### Export as Markdown
-
-Use `--format markdown` to extract readable text instead of rendering a PDF. This is useful for NotebookLM ingestion, text review, or further processing. Asset download and link rewriting are skipped automatically.
-
-```shell
-mvn exec:java -pl codex-ir-app \
-  -Dexec.mainClass="codex.apps.siteexporter.SiteExporterCommand" \
-  -Dexec.args="--url https://example.com/ --format markdown --output ./site.md"
-```
-
-Combine with `--from-mirror` for the fastest path — no crawl, no asset download, just text extraction:
+Resume from an existing mirror without network crawling:
 
 ```shell
 mvn exec:java -pl codex-ir-app \
@@ -893,66 +245,56 @@ mvn exec:java -pl codex-ir-app \
   -Dexec.args="--from-mirror ./mirror --format markdown --output ./site.md"
 ```
 
-#### Full parameter reference
+Create an EPUB from an existing mirror:
+
+```shell
+mvn exec:java -pl codex-ir-app \
+  -Dexec.mainClass="codex.apps.siteexporter.SiteExporterCommand" \
+  -Dexec.args="--from-mirror ./mirror --format epub --output ./site.epub"
+```
 
 | Flag | Default | Description |
-|------|---------|-------------|
-| `--url <url>` | *(required unless `--from-mirror`)* | Seed URL to crawl |
-| `--from-mirror <dir>` | — | Skip crawl; read manifest from this directory |
-| `--out-dir <dir>` | `./mirror` (or `<from-mirror>` dir) | Directory where mirrored HTML files live or are saved |
-| `--max-pages <n>` | `100` | Maximum pages to crawl |
-| `--max-depth <n>` | `3` | Maximum crawl depth from the seed URL |
-| `--no-same-domain` | *(flag, off by default)* | Follow links to other domains |
-| `--format pdf\|markdown` | `pdf` | Output format |
-| `--output <path>` | `./output.pdf` or `./output.md` | Path for the final artifact |
+|---|---|---|
+| `--url <url>` | Required unless resuming | Seed URL for a new mirror |
+| `--from-mirror <dir>` | None | Load an existing `mirror-manifest.json` and skip crawling |
+| `--out-dir <dir>` | `./mirror`, or the resumed mirror directory | Mirror HTML and manifest directory |
+| `--max-pages <n>` | `100` | Maximum pages for a new crawl |
+| `--max-depth <n>` | `3` | Maximum traversal depth |
+| `--no-same-domain` | Disabled | Permit links outside the seed domain |
+| `--format pdf|markdown|epub` | `pdf` | Publication format |
+| `--output <path>` | `./output.pdf`, `.md`, or `.epub` | Final artifact path, selected by format |
 
-#### Output artifacts
+Typical side outputs inside the mirror directory include:
 
-| Format | Primary output | Side output |
-|--------|---------------|-------------|
-| PDF | `<output>.pdf` | `<out-dir>/reader-pages/*.reader.html` — clean HTML for pdf2htmlEX pages |
-| Markdown | `<output>.md` | `<out-dir>/markdown-pages/*.html.md` — one `.md` file per mirrored page |
+- `mirror-manifest.json` — mirrored page metadata.
+- `asset-manifest.json` — downloaded asset metadata for PDF runs.
+- `reader-pages/` — reader-oriented HTML generated for pdf2htmlEX inputs.
+- `markdown-pages/` — per-page Markdown generated by the Markdown driver.
 
-Pages generated by [pdf2htmlEX](https://github.com/pdf2htmlEX/pdf2htmlEX) are automatically detected and routed through a text-extraction pipeline before rendering, producing readable output regardless of the original PDF layout.
+## Design Rules
 
-## Design Decisions
+- Interface contracts are paired with static factories such as `Corpus`/`Corpora` and `ProductDiscoverer`/`ProductDiscoverers`.
+- Domain data is represented by records; builders are used when construction is incremental.
+- Mutable ingestion structures are separated from immutable search snapshots.
+- Core remains domain-neutral, web owns reusable crawling primitives, and concrete applications stay in app.
+- Persistence is intentionally deferred; current corpus, index, vocabulary, and vector stores are in memory.
+- Virtual threads are used for concurrent blocking work where they simplify ownership and limits.
+- Architectural decisions belong in ADRs under [`docs/adrs`](docs/adrs/).
 
-The project is guided by a **build-it-from-scratch** philosophy. Key architectural decisions are captured as ADRs in `docs/`:
+See [`docs/CODING_IDENTITY.md`](docs/CODING_IDENTITY.md) for the project’s design philosophy and [`docs/Future-Forward.md`](docs/Future-Forward.md) for postponed work.
 
-| ADR | Topic |
-|-----|-------|
-| ADR-001 | Corpus statistics publication strategy |
-| ADR-002 | Indexing assembly inside `Indexers` |
-| ADR-003 | In-memory storage (no persistence yet) |
-| ADR-004 | Document fields aggregated into whole-document content |
-| ADR-005 | Future field-aware indexing (proposed, not implemented) |
+## Current Limitations and Next Directions
 
-Also see [`docs/CODING_IDENTITY.md`](docs/CODING_IDENTITY.md) for the project's design philosophy and [`docs/Future-Forward.md`](docs/Future-Forward.md) for postponed capabilities.
+- Hybrid lexical/vector ranking is not implemented.
+- Field values are aggregated before indexing; true field-specific postings and BM25F remain future work.
+- Core storage is memory-only.
+- The site-exporter command does not yet expose sitemap-first or dynamic-rendering crawl modes.
+- Markdown and EPUB prioritize readable text over complete visual fidelity.
+- EPUB output still needs real-reader and `epubcheck` validation.
 
-### Architectural Principles
+## Module Documentation
 
-- **Interface + Factory pattern** — every domain concept follows `Xxx` interface + `Xxxes` static factory. Implementations are hidden as inner classes.
-- **Domain types as records** — all data types are Java records, not bare maps or generic containers.
-- **In-memory by design** — corpus, inverted index, vector store, and vocabulary all live in memory. No persistence without explicit request.
-- **JPMS module boundaries** — each Maven module is a named JPMS module with explicit exports. Internal packages (`internal/`, `fetcher/`, `util/`) are not exported.
-- **Virtual threads** — concurrency uses virtual threads and structured concurrency where applicable.
-
-## Module READMEs
-
-- [codex-ir-core](codex-ir-core/README.md) — detailed core module documentation
-- [codex-ir-web](codex-ir-web/README.md) — web crawling and ingestion documentation
-- [codex-ir-app](codex-ir-app/README.md) — application entry points
-
-## Project Status
-
-- **Lexical indexing** — implemented
-- **TF-IDF / BM25 ranking** — implemented
-- **Web crawling & ingestion** — implemented
-- **Sparse vector indexing** — implemented
-- **Vector search** — implemented (experimental)
-- **Site Exporter (PDF)** — implemented; crawl → mirror → PDF with pdf2htmlEX detection
-- **Site Exporter (Markdown)** — implemented; crawl or resume → text extraction → `.md`
-- **Hybrid search** — planned
-- **Disk-backed persistence** — deferred (see ADR-003)
-- **Field-aware search** — planned (see ADR-005)
-- **ePub export** — planned
+- [`codex-ir-core/README.md`](codex-ir-core/README.md)
+- [`codex-ir-web/README.md`](codex-ir-web/README.md)
+- [`codex-ir-app/README.md`](codex-ir-app/README.md)
+- [`docs/apps/site-exporter/ENGINEERING_LOG.md`](docs/apps/site-exporter/ENGINEERING_LOG.md)

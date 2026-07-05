@@ -1,11 +1,11 @@
 package codex.ir.ranking;
 
 import codex.ir.Document;
+import codex.ir.corpus.Corpora;
+import codex.ir.corpus.Corpus;
 import codex.ir.indexer.*;
 import codex.ir.normalizer.Normalizer;
 import codex.ir.normalizer.Normalizers;
-import codex.ir.corpus.Corpora;
-import codex.ir.corpus.Corpus;
 import codex.ir.tokenizer.Tokenizer;
 import codex.ir.tokenizer.Tokenizers;
 import org.junit.jupiter.api.Test;
@@ -62,7 +62,6 @@ class RankersTest {
         final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
-        final Ranker ranker = Rankers.tfIdf(corpus, invertedIndex);
 
         final String text1 = "Java is a programming language";
         final String text2 = "A search engine uses an inverted index";
@@ -92,6 +91,7 @@ class RankersTest {
             indexer.index(document);
         }
 
+        final Ranker ranker = Rankers.tfIdf(corpus.snapshot(), invertedIndex.snapshot());
         final Posting javaPosting = invertedIndex.getPostings("java")
                 .stream()
                 .filter(posting -> "doc1.txt".equals(posting.documentId()))
@@ -111,7 +111,6 @@ class RankersTest {
         final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
-        final Ranker ranker = Rankers.bm25(corpus, invertedIndex);
 
         final String text1 = "Java is a programming language";
         final String text2 = "A search engine uses an inverted index";
@@ -141,6 +140,7 @@ class RankersTest {
             indexer.index(document);
         }
 
+        final Ranker ranker = Rankers.bm25(corpus.snapshot(), invertedIndex.snapshot());
         final Posting javaPosting = invertedIndex.getPostings("java")
                 .stream()
                 .filter(posting -> "doc1.txt".equals(posting.documentId()))
@@ -156,7 +156,7 @@ class RankersTest {
     void bm25RankerShouldReturnZeroWhenPostingIsNull() {
         final Corpus corpus = Corpora.inMemory();
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
-        final Ranker ranker = Rankers.bm25(corpus, invertedIndex);
+        final Ranker ranker = Rankers.bm25(corpus.snapshot(), invertedIndex.snapshot());
 
         final double score = ranker.score("java", null);
 
@@ -170,7 +170,6 @@ class RankersTest {
         final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
         final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
-        final Ranker ranker = Rankers.bm25(corpus, invertedIndex);
 
         final String shortText = "java code";
         final String longText = "java code architecture patterns testing deployment monitoring scaling pipelines";
@@ -190,6 +189,7 @@ class RankersTest {
         indexer.index(shortDoc);
         indexer.index(longDoc);
 
+        final Ranker ranker = Rankers.bm25(corpus.snapshot(), invertedIndex.snapshot());
         final Posting shortPosting = invertedIndex.getPostings("java")
                 .stream()
                 .filter(posting -> "short-doc.txt".equals(posting.documentId()))
@@ -220,7 +220,7 @@ class RankersTest {
     void tfIdfRankerShouldReturnZeroWhenPostingIsNull() {
         final Corpus corpus = Corpora.inMemory();
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
-        final Ranker ranker = Rankers.tfIdf(corpus, invertedIndex);
+        final Ranker ranker = Rankers.tfIdf(corpus.snapshot(), invertedIndex.snapshot());
 
         final double score = ranker.score("java", null);
 
@@ -231,7 +231,7 @@ class RankersTest {
     void tfIdfRankerShouldReturnNeutralIdfWhenTermNotIndexed() {
         final Corpus corpus = Corpora.inMemory();
         final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
-        final Ranker ranker = Rankers.tfIdf(corpus, invertedIndex);
+        final Ranker ranker = Rankers.tfIdf(corpus.snapshot(), invertedIndex.snapshot());
 
         assertEquals(0.0, ranker.idf("java"));
         assertEquals(0.0, ranker.idf("search"));
@@ -261,7 +261,7 @@ class RankersTest {
         invertedIndex.add("java", "doc-with-length", 0);
         invertedIndex.add("java", "doc-no-length", 0);
 
-        final Ranker ranker = Rankers.bm25(corpus, invertedIndex);
+        final Ranker ranker = Rankers.bm25(corpus.snapshot(), invertedIndex.snapshot());
 
         final Posting posting = invertedIndex.getPostings("java")
                 .stream()
@@ -304,7 +304,7 @@ class RankersTest {
         invertedIndex.add("java", "doc-1", 0);
         invertedIndex.add("rust", "doc-2", 0);
 
-        final Ranker ranker = Rankers.bm25(corpus, invertedIndex);
+        final Ranker ranker = Rankers.bm25(corpus.snapshot(), invertedIndex.snapshot());
 
         final Posting posting = invertedIndex.getPostings("java")
                 .stream()

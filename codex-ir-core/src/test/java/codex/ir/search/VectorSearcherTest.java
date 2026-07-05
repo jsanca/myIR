@@ -3,6 +3,7 @@ package codex.ir.search;
 import codex.ir.Document;
 import codex.ir.corpus.Corpora;
 import codex.ir.corpus.Corpus;
+import codex.ir.corpus.CorpusSnapshot;
 import codex.ir.corpus.vector.Vocabularies;
 import codex.ir.corpus.vector.Vocabulary;
 import codex.ir.indexer.InvertedIndex;
@@ -51,9 +52,10 @@ class VectorSearcherTest {
         indexer.index(doc2);
         indexer.index(doc3);
 
-        storeVector(corpus, documentWeighter, vectorizer, documentVectorStore, doc1);
-        storeVector(corpus, documentWeighter, vectorizer, documentVectorStore, doc2);
-        storeVector(corpus, documentWeighter, vectorizer, documentVectorStore, doc3);
+        final CorpusSnapshot corpusSnapshot = corpus.snapshot();
+        storeVector(corpusSnapshot, documentWeighter, vectorizer, documentVectorStore, doc1);
+        storeVector(corpusSnapshot, documentWeighter, vectorizer, documentVectorStore, doc2);
+        storeVector(corpusSnapshot, documentWeighter, vectorizer, documentVectorStore, doc3);
 
         final Searcher searcher = Searchers.vector(
                 tokenizer,
@@ -61,7 +63,7 @@ class VectorSearcherTest {
                 documentWeighter,
                 vectorizer,
                 Similarities.sparseCosine(),
-                corpus,
+                corpusSnapshot,
                 documentVectorStore,
                 vocabulary,
                 0.1d
@@ -94,9 +96,10 @@ class VectorSearcherTest {
         indexer.index(doc2);
         indexer.index(doc3);
 
-        storeVector(corpus, documentWeighter, vectorizer, documentVectorStore, doc1);
-        storeVector(corpus, documentWeighter, vectorizer, documentVectorStore, doc2);
-        storeVector(corpus, documentWeighter, vectorizer, documentVectorStore, doc3);
+        final CorpusSnapshot corpusSnapshot = corpus.snapshot();
+        storeVector(corpusSnapshot, documentWeighter, vectorizer, documentVectorStore, doc1);
+        storeVector(corpusSnapshot, documentWeighter, vectorizer, documentVectorStore, doc2);
+        storeVector(corpusSnapshot, documentWeighter, vectorizer, documentVectorStore, doc3);
 
         final Searcher searcher = Searchers.vector(
                 tokenizer,
@@ -104,7 +107,7 @@ class VectorSearcherTest {
                 documentWeighter,
                 vectorizer,
                 Similarities.sparseCosine(),
-                corpus,
+                corpusSnapshot,
                 documentVectorStore,
                 vocabulary,
                 0.1d
@@ -129,7 +132,7 @@ class VectorSearcherTest {
 
         final Searcher searcher = Searchers.vector(
                 tokenizer, normalizer, documentWeighter, vectorizer,
-                Similarities.sparseCosine(), corpus, documentVectorStore, vocabulary, 0.1d);
+                Similarities.sparseCosine(), corpus.snapshot(), documentVectorStore, vocabulary, 0.1d);
 
         final List<SearchResult> results = searcher.searchDetailed(null);
 
@@ -149,7 +152,7 @@ class VectorSearcherTest {
 
         final Searcher searcher = Searchers.vector(
                 tokenizer, normalizer, documentWeighter, vectorizer,
-                Similarities.sparseCosine(), corpus, documentVectorStore, vocabulary, 0.1d);
+                Similarities.sparseCosine(), corpus.snapshot(), documentVectorStore, vocabulary, 0.1d);
 
         final List<SearchResult> emptyResults = searcher.searchDetailed("");
         assertTrue(emptyResults.isEmpty(),
@@ -160,14 +163,14 @@ class VectorSearcherTest {
                 "Expected empty result list for blank (whitespace-only) query string");
     }
 
-    private static void storeVector(final Corpus corpus,
+    private static void storeVector(final CorpusSnapshot corpusSnapshot,
                                     final DocumentWeighter documentWeighter,
                                     final Vectorizer<SparseDocumentVector> vectorizer,
                                     final DocumentVectorStore documentVectorStore,
                                     final Document document) {
         final SparseDocumentVector vector = vectorizer.vectorize(
                 document.id(),
-                documentWeighter.weigh(corpus, document));
+                documentWeighter.weigh(corpusSnapshot, document));
         documentVectorStore.save(vector);
     }
 
