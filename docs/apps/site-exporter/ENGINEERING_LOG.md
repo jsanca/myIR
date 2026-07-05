@@ -1,5 +1,818 @@
 # Site Exporter — Engineering Log
 
+## Phase 10.10 — Publication Driver Refactor
+
+### Summary
+
+Removed format-specific `if/else` publication branching from `SiteExporterCommand` by introducing a `PublicationDriver` interface with `PdfPublicationDriver` and `MarkdownPublicationDriver` implementations, and a `PublicationDrivers` factory. The command now selects a driver by format and delegates both the asset-processing decision and the publication act to it. All PDF and Markdown internals are encapsulated inside their respective drivers. EPUB throws a clear `IllegalArgumentException` from the factory.
+
+### Scope
+
+**Included:**
+- `PublicationDriver` interface (`requiresAssetProcessing()` + `publish()`)
+- `PdfPublicationDriver` — encapsulates all PDF wiring (reader-pages, Pdf2HtmlExAwarePdfRenderer, PublicationPipeline)
+- `MarkdownPublicationDriver` — encapsulates MarkdownPublicationWriter and markdown-pages
+- `PublicationDrivers` factory — `forFormat(format, outputDir)` switch expression
+- `SiteExporterCommand` — format-specific branches replaced with driver pattern
+- 25 new tests across three test classes
+
+**Excluded:**
+- ePub implementation (EPUB throws at factory time)
+- Changes to `PublicationPipeline`, `MarkdownPublicationWriter`, or any mirror/asset/link stage
+
+### Deliverables
+
+- `PublicationDriver.java` — new interface
+- `PdfPublicationDriver.java` — new class
+- `MarkdownPublicationDriver.java` — new class
+- `PublicationDrivers.java` — new factory class
+- `PublicationDriversTest.java` — 7 tests
+- `PdfPublicationDriverTest.java` — 10 tests
+- `MarkdownPublicationDriverTest.java` — 10 tests (+ 3 null-guard tests)
+- `SiteExporterCommand.java` — format branching removed
+
+### Changed Files
+
+| File | Change |
+|---|---|
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/PublicationDriver.java` | Created |
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/PdfPublicationDriver.java` | Created |
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/MarkdownPublicationDriver.java` | Created |
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/PublicationDrivers.java` | Created |
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/SiteExporterCommand.java` | Refactored publication phase |
+| `codex-ir-app/src/test/java/codex/apps/siteexporter/PublicationDriversTest.java` | Created |
+| `codex-ir-app/src/test/java/codex/apps/siteexporter/PdfPublicationDriverTest.java` | Created |
+| `codex-ir-app/src/test/java/codex/apps/siteexporter/MarkdownPublicationDriverTest.java` | Created |
+
+### Validation
+
+```
+mvn test -pl codex-ir-app
+Tests run: 321, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+```
+
+- All 296 tests from prior phases still pass ✓
+- 25 new driver tests: factory returns correct types, EPUB throws clearly, `requiresAssetProcessing()` contracts, `publish()` produces correct artifacts and page counts ✓
+- `SiteExporterCommand` no longer contains `if (format == MARKDOWN)` or any `Pdf2HtmlExAwarePdfRenderer` / `MarkdownPublicationWriter` construction ✓
+
+### Tests
+
+| Test class | Tests | Status |
+|---|---|---|
+| `PublicationDriversTest` | 7 | Added |
+| `PdfPublicationDriverTest` | 9 | Added |
+| `MarkdownPublicationDriverTest` | 9 | Added |
+
+Key tests:
+- `forFormatShouldReturnPdfDriverForPdf` — `assertInstanceOf(PdfPublicationDriver.class, ...)`
+- `forFormatShouldReturnMarkdownDriverForMarkdown` — `assertInstanceOf(MarkdownPublicationDriver.class, ...)`
+- `forFormatShouldThrowForEpub` — message contains "EPUB" and a supported alternative
+- `pdfDriverShouldRequireAssetProcessing` — `requiresAssetProcessing()` returns `true`
+- `markdownDriverShouldNotRequireAssetProcessing` — returns `false`
+- `publishShouldWriteValidPdfToOutputPath` — output starts with `%PDF`
+- `publishShouldWriteMarkdownFileToOutputPath` — output contains extracted text
+
+### Engineering Notes
+
+- `PublicationDriver.requiresAssetProcessing()` removes the last format-aware conditional from `SiteExporterCommand`. The command now reads: get driver → if `requiresAssetProcessing()` → run asset/link stages → `driver.publish(...)`. No format switch.
+- `PublicationDrivers.forFormat()` uses a Java `switch` expression which is exhaustive over `PublicationFormat`; the compiler will emit a warning if a new format constant is added without updating the switch.
+- Both drivers validate their `source` and `options` arguments with `Objects.requireNonNull` so callers get clear NPEs without having to trace into pipeline internals.
+- `PdfPublicationDriver` derives `reader-pages/` from the constructor's `outputDir`, consistent with the pre-refactor behavior in `SiteExporterCommand`.
+
+### Decisions
+
+- **`requiresAssetProcessing()` on the driver interface rather than in the command**: the driver knows whether it needs processed assets (PDF = yes, Markdown = no). Keeping this inside the driver means the command is fully format-agnostic and future drivers can express their own requirements.
+- **`IllegalArgumentException` for EPUB** (not a checked exception or enum-less approach): EPUB is a known, named unsupported case; `IllegalArgumentException` with a clear message is the right signal that the caller passed an unsupported value, not a recoverable I/O failure.
+- **Concrete driver classes visible in the factory tests** via `assertInstanceOf`: this is a deliberate decision — the factory contract includes which concrete type is returned (it's part of the API surface), so the test documents and enforces it.
+
+### Tradeoffs
+
+- **Concrete driver classes exposed in test assertions**: tests now depend on the concrete class names `PdfPublicationDriver` and `MarkdownPublicationDriver`. If a driver is renamed or the factory is changed to return a wrapper, these tests break. This is acceptable — the break is intentional and the tests serve as a guard against accidental driver substitution.
+- **`outputDir` required at factory time** rather than at `publish()` time: drivers need the output directory to construct their side-output paths (`reader-pages/`, `markdown-pages/`). Accepting it at construction keeps `publish()` signature simple and consistent with `PublicationExportOptions` (which already carries `outputPath`).
+
+### Risks
+
+- If a new `PublicationFormat` constant is added and `PublicationDrivers.forFormat()` is not updated, the Java switch expression will compile successfully (it still exhausts all cases at compile time only if sealed). At runtime it would throw `MatchException`. A future `assert false : "unreachable"` guard or tests for each format constant would make this safer.
+
+### Known Limitations
+
+- EPUB is entirely unsupported; requesting it fails fast at the factory with a clear message.
+- The `SiteExporterCommand` still contains `--format` parsing logic that must be kept in sync with new `PublicationFormat` values.
+
+### Follow-ups
+
+1. Add an exhaustiveness test: `forFormatShouldHandleAllKnownFormats` — iterates `PublicationFormat.values()` and verifies either a driver is returned or an `IllegalArgumentException` is thrown for each known constant.
+2. When EPUB is implemented, add `EpubPublicationDriver` and update the factory switch.
+3. Consider making `PublicationDrivers` an interface (`PublicationDriverFactory`) to allow injection in integration tests.
+
+### Next Step
+
+Validate end-to-end with a real mirror using both `--format pdf` and `--format markdown` to confirm the driver selection works in production. Then provide a real pdf2htmlEX export sample to close the validation gap for the reader-extraction path.
+
+## Phase 10.9 — Markdown Publication Writer
+
+### Summary
+
+Added Markdown as a first-class publication format. `MarkdownPublicationWriter` produces a single combined `.md` file from all ordered mirror pages: pdf2htmlEX pages are routed through the existing `Pdf2HtmlExTextExtractor` pipeline; normal HTML pages are processed via a Jsoup paragraph extractor. Optional per-page `.md` files are written under `markdown-pages/`. `SiteExporterCommand` supports `--format markdown` with a format-dependent default output path (`./output.md`) and skips asset download / link rewriting in Markdown mode since neither is needed for text extraction.
+
+### Scope
+
+**Included:**
+- `MarkdownPublicationWriter` — new class with builder; produces combined `.md` and optional per-page files
+- `PublicationFormat.MARKDOWN` — new enum value
+- `SiteExporterCommand` — MARKDOWN branch in `main()`, format-dependent default output path, skip asset/link phases for Markdown
+- 33 new tests in `MarkdownPublicationWriterTest`, 2 new tests in `SiteExporterCommandTest`
+
+**Excluded:**
+- ePub support (deferred per constraints)
+- Changes to `PublicationPipeline` (PDF path untouched)
+- `NormalHtmlTextExtractor` abstraction (normal HTML extraction is inlined in `MarkdownPublicationWriter`)
+- Table/image extraction from pdf2htmlEX pages
+
+### Deliverables
+
+- `MarkdownPublicationWriter.java` — new class (200 source lines)
+- `MarkdownPublicationWriterTest.java` — 33 tests
+- `PublicationFormat.java` — `MARKDOWN` constant added
+- `SiteExporterCommand.java` — MARKDOWN handling, format-aware defaults
+
+### Changed Files
+
+| File | Change |
+|---|---|
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/MarkdownPublicationWriter.java` | Created |
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/PublicationFormat.java` | `MARKDOWN` added |
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/SiteExporterCommand.java` | MARKDOWN branch, format-aware default path, skip asset/link stages |
+| `codex-ir-app/src/test/java/codex/apps/siteexporter/MarkdownPublicationWriterTest.java` | Created |
+| `codex-ir-app/src/test/java/codex/apps/siteexporter/SiteExporterCommandTest.java` | 2 new tests |
+
+### Validation
+
+```
+mvn test -pl codex-ir-app
+Tests run: 296, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+```
+
+- `writeShouldExtractPdf2HtmlExContentContainingExpectedStrings` confirms the synthetic fixture produces "Part I", "Applied Math and Machine Learning Basics", "This part of the book introduces..." ✓
+- `writeShouldNotContainCssOrScriptFromPdf2HtmlExPage` confirms no `@font-face`, `<script>`, or `position:absolute` in output ✓
+- `writeShouldPreservePublicationOrder` confirms `discoveredOrder` ordering is respected ✓
+- Escaping unit tests confirm `\\`, `\[`, `\]`, and leading `\##` are emitted correctly ✓
+- Per-page file tests confirm `markdown-pages/page.html.md` is created when configured ✓
+
+### Tests
+
+| Test | Status |
+|---|---|
+| `builderShouldThrowWhenSourceIsNull` | Added |
+| `writeShouldThrowWhenOutputIsNull` | Added |
+| `writeShouldCreateOutputFile` | Added |
+| `writeShouldCreateOutputParentDirectoriesIfAbsent` | Added |
+| `writeShouldStartWithLevelOneHeadingContainingSeedHost` | Added |
+| `writeShouldIncludeDocumentLevelSourceComment` | Added |
+| `writeShouldIncludeSectionHorizontalRuleForEachPage` | Added |
+| `writeShouldDeriveSectionHeadingFromPageUrlPath` | Added |
+| `writeShouldIncludePerPageSourceComment` | Added |
+| `writeShouldExtractParagraphTextFromNormalHtml` | Added |
+| `writeShouldExtractHeadingTextFromNormalHtml` | Added |
+| `writeShouldExtractListItemTextFromNormalHtml` | Added |
+| `writeShouldExtractPdf2HtmlExContentContainingExpectedStrings` | Added |
+| `writeShouldNotContainCssOrScriptFromPdf2HtmlExPage` | Added |
+| `writeShouldPreservePublicationOrder` | Added |
+| `writeShouldReturnCorrectPageCount` | Added |
+| `writeShouldReturnMarkdownFormat` | Added |
+| `writeShouldReturnCorrectOutputPath` | Added |
+| `writeShouldReturnPositiveSizeBytes` | Added |
+| `writeShouldCreatePerPageMarkdownFilesWhenDirConfigured` | Added |
+| `writeShouldNotCreateMarkdownPagesDirWhenNotConfigured` | Added |
+| `perPageMarkdownFileShouldContainSameContentAsSection` | Added |
+| `writeShouldEscapeBackslashesInExtractedText` | Added |
+| `writeShouldEscapeBracketsInExtractedText` | Added |
+| `writeShouldEscapeLeadingHashesInExtractedText` | Added |
+| `writeShouldRecordFailureWhenHtmlFileIsMissing` | Added |
+| `writeShouldSucceedForSuccessfulPagesEvenIfSomePagesMissing` | Added |
+| `writeShouldHandleEmptyManifestGracefully` | Added |
+| `escapeMarkdownShouldReturnEmptyForNullOrEmpty` | Added |
+| `escapeMarkdownShouldEscapeBackslash` | Added |
+| `escapeMarkdownShouldEscapeBrackets` | Added |
+| `escapeMarkdownShouldEscapeLeadingHashAtLineStart` | Added |
+| `escapeMarkdownShouldNotEscapeHashInMiddleOfLine` | Added |
+| `parseArgsShouldDefaultToMarkdownOutputPathForMarkdownFormat` | Added |
+| `parseArgsShouldUseExplicitOutputPathEvenForMarkdownFormat` | Added |
+
+### Engineering Notes
+
+- `MarkdownPublicationWriter` reuses `Pdf2HtmlExDetector` and `Pdf2HtmlExTextExtractor` directly rather than going through `Pdf2HtmlExAwarePdfRenderer`, since the Markdown path does not need an intermediate HTML rendering step.
+- Normal HTML extraction selects `h1–h6`, `p`, and `li` elements via Jsoup. If none of these are present, it falls back to `body.text()`. This handles both richly structured web pages and minimal mirror captures.
+- `escapeMarkdown` is package-visible (`static`) so it can be unit-tested directly without constructing a full writer.
+- The document-level title is derived from the seed URL's host name (e.g. `book.example.com`), not from an HTML `<title>` tag, since no single page owns the publication title.
+- Asset download and link rewriting are skipped in Markdown mode in `SiteExporterCommand` — these stages modify HTML files on disk and are unnecessary for text-only output.
+
+### Decisions
+
+- **`MarkdownPublicationWriter` rather than modifying `PublicationPipeline`**: `PublicationPipeline` is bound to the PDF contract (`PdfRenderer`, `PdfAssemblyStrategy`). Introducing a parallel writer class keeps the existing pipeline untouched and avoids forcing Markdown into an ill-fitting byte-array assembly model.
+- **`ReaderDocument` as the shared intermediate for pdf2htmlEX pages**: the phase design note suggested this path and it was already available. Normal HTML does not produce a `ReaderDocument` — its extraction is simpler and inline.
+- **Markdown escaping scope**: only `\`, `[`, `]`, and leading `#` sequences are escaped. Prose text from books and web pages rarely contains characters that would create unintended Markdown structure beyond these. Over-escaping (e.g. `*`, `_`) would make the output less readable.
+- **Format-dependent default output path** (`./output.md` vs `./output.pdf`): resolved post-loop so both `--format` and `--output` can appear in any order in the CLI args.
+
+### Tradeoffs
+
+- **Normal HTML extraction does not preserve heading hierarchy**: `<h2>` text is extracted as a plain paragraph, not as `## heading` in the Markdown. This avoids conflicting with the `## section-name` structure used for per-page headings, but loses structural information. A future pass could map `<h1>` → `###` etc. with proper offset, but that's out of scope.
+- **No deduplication of `<li>` items that are descendants of extracted `<p>` elements**: if an HTML page uses `<p>` inside `<li>`, both the `<li>` and `<p>` text will appear. This is rare in mirrored book content but could produce duplicates on heavily nested pages.
+
+### Risks
+
+- The Markdown escaping regex `(?m)^(#{1,6})(\s)` will not escape a line that begins with `#` immediately followed by a non-space (e.g. `#tag`). This is intentional — only valid Markdown heading syntax (space after `#`) is escaped. A line like `#tag` is safe and common in social-media scraped content.
+
+### Known Limitations
+
+- Validation is based on the synthetic pdf2htmlEX fixture; a real Deep Learning Book export has not been tested.
+- Normal HTML extraction loses heading hierarchy and does not produce structured Markdown headings inside the section.
+- Images are not included in Markdown output.
+
+### Follow-ups
+
+1. Validate against a real Deep Learning Book pdf2htmlEX export.
+2. Add `--markdown-pages-dir` CLI flag so operators can configure the per-page directory path.
+3. Consider mapping HTML heading levels (`h1`→`###`, `h2`→`####`) inside section content.
+4. Add a `NormalHtmlTextExtractor` when normal-HTML extraction is needed in more than one context.
+
+### Next Step
+
+Validate Markdown output against a real mirror: run with `--from-mirror <path> --format markdown` on an existing mirror and verify the output is readable and contains expected content. Then provide a real pdf2htmlEX export sample to close the validation gap.
+
+## Phase 10.8 — Resume From Existing Mirror (`--from-mirror`)
+
+### Summary
+
+Extended `SiteExporterCommand` with a `--from-mirror <path>` option that skips the crawl phase entirely and reuses a previously created mirror. A new `ExistingMirrorLoader` class reads `mirror-manifest.json` from the provided directory, validates it (hard-fail on missing dir or manifest, soft-warn on missing HTML files), and returns the manifest for use by the downstream pipeline stages unchanged. When `--from-mirror` is present, `SiteMirrorService` is never called.
+
+### Scope
+
+**Included:**
+- `ExistingMirrorLoader` — new class with hard/soft validation of an existing mirror
+- `SiteExporterCommand` — updated `ParsedArgs` record (new `fromMirrorDir` field), updated `parseArgs()`, updated `main()` with resume branch
+- 13 new tests in `ExistingMirrorLoaderTest` and 7 new tests in `SiteExporterCommandTest`
+
+**Excluded:**
+- Changes to `MirrorManifest` schema
+- Changes to `SiteMirrorService` or any crawler code
+- Re-downloading any assets that already exist in the mirror
+- Partial-mirror resumption (e.g. resuming a crawl that was interrupted mid-run)
+
+### Deliverables
+
+- `ExistingMirrorLoader.java` — new class (79 source lines)
+- `ExistingMirrorLoaderTest.java` — 13 tests
+- `SiteExporterCommand.java` — updated CLI parser and `main()` logic
+- `SiteExporterCommandTest.java` — 7 new tests for `--from-mirror` flag
+
+### Changed Files
+
+| File | Change |
+|---|---|
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/ExistingMirrorLoader.java` | Created |
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/SiteExporterCommand.java` | Updated (resume branch, `fromMirrorDir` field) |
+| `codex-ir-app/src/test/java/codex/apps/siteexporter/ExistingMirrorLoaderTest.java` | Created |
+| `codex-ir-app/src/test/java/codex/apps/siteexporter/SiteExporterCommandTest.java` | Updated (7 new tests) |
+
+### Validation
+
+```
+mvn test -pl codex-ir-app
+Tests run: 261, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+```
+
+- `ExistingMirrorLoaderTest.loadedManifestShouldSupportPublicationPipelineRun` runs the full pipeline (load manifest → render two HTML pages → assemble PDF) and confirms `%PDF` output ✓
+- All prior tests (243 before this phase) continue to pass ✓
+- Resume branch in `main()` not exercised by unit tests (requires a live mirror directory); covered by `ExistingMirrorLoaderTest` integration test ✓
+
+### Tests
+
+| Test | Class | Status |
+|---|---|---|
+| `loadShouldThrowWhenMirrorDirIsNull` | `ExistingMirrorLoaderTest` | Added |
+| `loadShouldThrowWhenMirrorDirDoesNotExist` | `ExistingMirrorLoaderTest` | Added |
+| `loadShouldThrowWhenManifestFileIsMissing` | `ExistingMirrorLoaderTest` | Added |
+| `loadShouldThrowWhenMirrorPathIsAFile` | `ExistingMirrorLoaderTest` | Added |
+| `loadShouldReturnManifestForValidMirrorDirectory` | `ExistingMirrorLoaderTest` | Added |
+| `loadShouldPreserveAllManifestFields` | `ExistingMirrorLoaderTest` | Added |
+| `loadShouldSucceedWhenAllSuccessPageHtmlFilesExist` | `ExistingMirrorLoaderTest` | Added |
+| `loadShouldSucceedEvenWhenSomeHtmlFilesAreMissing` | `ExistingMirrorLoaderTest` | Added |
+| `loadShouldIgnoreNonSuccessPagesDuringFileValidation` | `ExistingMirrorLoaderTest` | Added |
+| `loadShouldIgnoreSuccessPagesWithNullLocalHtmlPath` | `ExistingMirrorLoaderTest` | Added |
+| `loadedManifestShouldSupportPublicationPipelineRun` | `ExistingMirrorLoaderTest` | Added |
+| `parseArgsShouldSetFromMirrorDir` | `SiteExporterCommandTest` | Added |
+| `parseArgsShouldNotRequireUrlWhenFromMirrorIsProvided` | `SiteExporterCommandTest` | Added |
+| `parseArgsShouldUseFromMirrorDirAsDefaultOutputDir` | `SiteExporterCommandTest` | Added |
+| `parseArgsShouldRespectExplicitOutDirEvenWithFromMirror` | `SiteExporterCommandTest` | Added |
+| `shouldThrowWhenNeitherUrlNorFromMirrorIsProvided` | `SiteExporterCommandTest` | Added (replaces prior `shouldThrowWhenUrlFlagIsMissing` semantics) |
+| `parseArgsShouldAcceptBothUrlAndFromMirrorTogether` | `SiteExporterCommandTest` | Added |
+| `parseArgsShouldLeaveFromMirrorDirNullInNormalMode` | `SiteExporterCommandTest` | Added |
+
+### Engineering Notes
+
+- `ExistingMirrorLoader.validateHtmlFiles()` is intentionally tolerant: missing HTML files produce a `[ExistingMirrorLoader][WARN]` line per file on `stderr` plus a count summary, but do not abort loading. Render failures for those pages surface later in `AssemblyReport.renderFailures()` where they belong.
+- In resume mode, `SiteMirrorOptions` is reconstructed from manifest metadata (seedUrl, maxPages, maxDepth, sameDomainOnly) so that `SiteAssetService` and `SiteLinkRewriteService` receive valid options without requiring a second `--url` flag.
+- The `outputDir` defaults to `fromMirrorDir` when `--out-dir` is not explicitly provided, so asset downloads and rewrites go into the same directory tree as the existing mirror (which is the expected layout).
+- `--url` is optional when `--from-mirror` is set. If both are provided, `--url` is silently ignored for the mirror phase (but the value is still parsed and stored in `ParsedArgs.seedUrl` for forward compatibility).
+
+### Decisions
+
+- **`ExistingMirrorLoader` as a standalone class** (not a static helper on `SiteExporterCommand`): the loader has its own validation contract and is tested independently; embedding it inside the command would make that contract untestable in isolation.
+- **`IOException` for hard failures, `stderr` for soft failures**: consistent with how `SiteMirrorService` reports errors. Hard failures cause `main()` to print the message and `System.exit(1)`. Soft warnings do not interrupt the pipeline.
+- **`fromMirrorDir` nullable in `ParsedArgs`**: null is the clear sentinel for "not provided". An `Optional<Path>` would add noise to the record's constructor and downstream null checks without benefit.
+
+### Tradeoffs
+
+- **No partial-resume**: if a crawl was interrupted after saving some pages but not all, this path re-uses whatever is on disk. Pages with missing HTML files produce render failures in `AssemblyReport`. A future partial-resume feature would need `SiteMirrorService` changes and is out of scope.
+- **No manifest schema version check**: `ManifestReader` reads any valid `mirror-manifest.json`. If the schema changes in the future, manifests written by older versions may silently read back with zero-value fields. An explicit schema version field could guard against this.
+
+### Risks
+
+- If the user provides a `--from-mirror` directory that was written by a future version of the tool with additional required fields, `ManifestReader` may silently read back nulls or defaults. Low risk now; worth tracking if the schema evolves.
+- `SiteAssetService.download()` and `SiteLinkRewriteService.rewrite()` are both called in resume mode. If assets were already downloaded and links already rewritten in the original run, these steps are idempotent for downloads (files already exist) but link rewriting may transform already-rewritten links. This is pre-existing behavior shared with the normal path.
+
+### Known Limitations
+
+- Resume mode does not skip asset download or link rewriting, even if those steps completed in the original run. The pipeline always runs all three post-mirror stages.
+- `loadedManifestShouldSupportPublicationPipelineRun` validates the load-and-render path but does not exercise `SiteAssetService` or `SiteLinkRewriteService` (those require network access or a full mirror fixture).
+
+### Follow-ups
+
+1. Add a `--skip-assets` / `--skip-links` flag to allow skipping already-completed pipeline stages in resume mode.
+2. Add a schema version field to `MirrorManifest` so future incompatible changes can be detected at load time.
+3. Support partial-mirror resumption: detect which pages are still missing and continue crawling from those URLs.
+
+### Next Step
+
+Validate resume mode end-to-end using a real previously-downloaded mirror directory: run the full pipeline once (`--url`), then re-run with `--from-mirror` and confirm identical output artifacts without triggering any network requests.
+
+## Phase 10.8 — Wire pdf2htmlEX Reader Route
+
+### Summary
+
+Wired the Phase 10.7 extraction pipeline into the production rendering path by introducing `Pdf2HtmlExAwarePdfRenderer`, a `PdfRenderer` decorator. The decorator intercepts each HTML file before it reaches `OpenHtmlToPdfRenderer`, detects pdf2htmlEX output, and transparently substitutes a clean reader HTML produced by `ReaderHtmlWriter`. Normal pages are forwarded to the inner renderer unchanged. `PublicationPipeline`, `PdfAssemblyStrategy`, and `PublicationOrderingStrategy` required no changes. `SiteExporterCommand` is updated to wrap `OpenHtmlToPdfRenderer` with the new decorator.
+
+### Scope
+
+**Included:**
+- `Pdf2HtmlExAwarePdfRenderer` — new decorator class
+- `SiteExporterCommand` — one-line change to wire the decorator
+- 13 new tests covering null guards, normal-path delegation, reader-path routing, artifact existence, auto-directory creation, content validation, end-to-end PDF rendering, and a full mixed-manifest pipeline integration test
+
+**Excluded:**
+- Changes to `PublicationPipeline`, `PdfAssemblyStrategy`, or `PublicationOrderingStrategy`
+- Failure-mode observability (e.g. recording whether each page was routed via reader path in `AssemblyReport`)
+- Column-layout or image handling improvements to the extractor
+
+### Deliverables
+
+- `Pdf2HtmlExAwarePdfRenderer.java` — new class (57 source lines)
+- `Pdf2HtmlExAwarePdfRendererTest.java` — 13 tests
+- `SiteExporterCommand.java` — updated to use `Pdf2HtmlExAwarePdfRenderer`
+
+### Changed Files
+
+| File | Change |
+|---|---|
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/Pdf2HtmlExAwarePdfRenderer.java` | Created |
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/SiteExporterCommand.java` | Updated renderer wiring |
+| `codex-ir-app/src/test/java/codex/apps/siteexporter/Pdf2HtmlExAwarePdfRendererTest.java` | Created |
+
+### Validation
+
+```
+mvn test -pl codex-ir-web,codex-ir-app
+Tests run: 243, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+```
+
+Mixed-manifest pipeline test log (from `pipelineWithMixedManifestShouldRenderBothPagesAndCreateReaderArtifact`):
+```
+[Pipeline] Rendering .../content/normal.html
+[Pipeline] Rendering .../content/pdf2htmlex.html
+[Pdf2HtmlEx] pdf2htmlex.html → reader path (4 paragraphs across 1 page(s)) → pdf2htmlex.html.reader.html
+[Pipeline] Artifact written → .../output.pdf (2136 bytes, 2/2 pages rendered, 0 failed)
+```
+
+- Normal page rendered via original path ✓
+- pdf2htmlEX page routed through reader path ✓
+- Reader HTML artifact exists at `reader-pages/pdf2htmlex.html.reader.html` ✓
+- No reader HTML created for normal page ✓
+- Output PDF starts with `%PDF` ✓
+- Page ordering preserved (normal at position 0, pdf2htmlEX at position 1) ✓
+
+### Tests
+
+| Test | Status |
+|---|---|
+| `constructorShouldThrowWhenDelegateIsNull` | Added |
+| `constructorShouldThrowWhenReaderPagesDirIsNull` | Added |
+| `renderShouldThrowWhenHtmlFileIsNull` | Added |
+| `renderShouldThrowWhenOptionsIsNull` | Added |
+| `renderShouldDelegateDirectlyForNormalHtml` | Added |
+| `renderShouldReturnDelegateResultForNormalHtml` | Added |
+| `renderShouldRouteViaReaderPathForPdf2HtmlExPage` | Added |
+| `renderShouldWriteReaderHtmlToReaderPagesDir` | Added |
+| `renderShouldAutoCreateReaderPagesDirWhenAbsent` | Added |
+| `readerHtmlShouldContainExtractedValidationStrings` | Added |
+| `renderShouldProduceValidPdfBytesForPdf2HtmlExPage` | Added |
+| `pipelineWithMixedManifestShouldRenderBothPagesAndCreateReaderArtifact` | Added |
+| `pipelineOrderingShouldBePreservedAcrossMixedPages` | Added |
+
+### Engineering Notes
+
+- The HTML file is read twice on the **normal path**: once in `Pdf2HtmlExAwarePdfRenderer.render()` for detection, and once inside `OpenHtmlToPdfRenderer.render()` for XHTML conversion and rendering. This is acceptable for a typical mirror where most pages are not pdf2htmlEX output. If it becomes a bottleneck, `PdfRenderer` could be extended to accept a pre-read string.
+- On the **pdf2htmlEX path**, the file is read only once; the same string feeds detection, extraction, and writer. The inner renderer reads only the newly written reader HTML.
+- The `readerPagesDir` in `SiteExporterCommand` is fixed as `outputDir/reader-pages`, co-located with the mirror. This is predictable for debugging and post-processing.
+- The log line `[Pdf2HtmlEx] <file> → reader path (<N> paragraphs across <P> page(s)) → <reader-file>` is emitted at `stdout` (matching the existing `[Pipeline]` log style) so operators can see which pages are rerouted without enabling verbose logging.
+
+### Decisions
+
+- **Decorator over modifying `PublicationPipeline`**: the pipeline's responsibility is sequencing, failure handling, and assembly — not format-specific routing. A decorator at the `PdfRenderer` level keeps those concerns separated and lets the routing be tested independently of the pipeline.
+- **`readerPagesDir` as constructor argument**: lets callers (tests, CLI) provide a predictable path rather than deriving it dynamically from each HTML file's parent (which would scatter reader files across the mirror tree).
+- **`PublicationPipeline` unchanged**: all existing pipeline tests pass unmodified; the new class is additive only.
+
+### Tradeoffs
+
+- **Double file read on normal path**: minor I/O overhead, cleanest API. Alternative (caching the string inside a custom `PdfRenderer` variant) would require changing the interface, which is not justified here.
+- **`AssemblyReport` does not track reader-path count**: adding a `pagesRoutedViaReader` counter would be useful for observability but requires changing a record that is used in several places. Deferred to a follow-up.
+
+### Risks
+
+- If a non-pdf2htmlEX page happens to contain `#page-container` + `.pf` + `.t` in its markup, it would be incorrectly routed via the reader path, losing its original rendering. The detector uses three independent signals (meta, comment, structure) and requires the structural signal to have all three elements, which substantially reduces the false-positive rate.
+
+### Known Limitations
+
+- The reader HTML written to `reader-pages/` is not cleaned up after the pipeline completes. For large mirrors this can leave many small files on disk.
+- Validation is based on a synthetic pdf2htmlEX fixture; a real Deep Learning Book export has not been tested.
+
+### Follow-ups
+
+1. Add `pagesRoutedViaReader` counter to `AssemblyReport` for observability.
+2. Clean up or archive `reader-pages/` after successful pipeline runs.
+3. Allow `readerPagesDir` to be configured via `SiteExporterCommand --reader-pages-dir <dir>`.
+4. Validate against a real Deep Learning Book pdf2htmlEX export.
+
+### Next Step
+
+Validate against a real pdf2htmlEX export (Deep Learning Book or similar). Provide the sample HTML file and run the end-to-end pipeline to confirm the reader-path routing handles real-world coordinate CSS and produces a readable PDF.
+
+## Phase 10.7 — pdf2htmlEX Reader Extraction
+
+### Summary
+
+Introduced a four-class pipeline that handles mirrored pages generated by pdf2htmlEX. Instead of trying to render the original positioned HTML (which fails because of absolute-positioned spans, embedded fonts, and CSS transforms), the pipeline extracts the visible text content, reconstructs reading order, and produces a clean reader HTML that OpenHTMLToPDF can render without overlap or layout errors.
+
+### Scope
+
+**Included:**
+- `Pdf2HtmlExDetector` — three independent detection signals (meta generator, HTML comment, structural fingerprint)
+- `ReaderPage` and `ReaderDocument` records — structured extracted text
+- `Pdf2HtmlExTextExtractor` — CSS coordinate parsing, span sorting, line and paragraph grouping
+- `ReaderHtmlWriter` — produces clean HTML with page breaks, no scripts, no @font-face
+- Test fixture `deeplearning_part1.html` — synthetic pdf2htmlEX page containing the three required validation strings
+- 43 new tests across three test classes
+
+**Excluded:**
+- Integration into `PublicationPipeline` or `ManifestOrderPdfAssemblyStrategy` (deferred to a follow-up phase)
+- Image extraction from pdf2htmlEX pages
+- Table-structure preservation
+- Validation against a real Deep Learning Book pdf2htmlEX export (pending user-provided sample)
+
+### Deliverables
+
+- `Pdf2HtmlExDetector.java` — new class
+- `Pdf2HtmlExTextExtractor.java` — new class
+- `ReaderDocument.java` — new record
+- `ReaderPage.java` — new record
+- `ReaderHtmlWriter.java` — new class
+- `Pdf2HtmlExDetectorTest.java` — 11 tests
+- `Pdf2HtmlExTextExtractorTest.java` — 19 tests
+- `ReaderHtmlWriterTest.java` — 13 tests
+- `src/test/resources/fixtures/pdf2htmlex/deeplearning_part1.html` — test fixture
+
+### Changed Files
+
+| File | Change |
+|---|---|
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/Pdf2HtmlExDetector.java` | Created |
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/Pdf2HtmlExTextExtractor.java` | Created |
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/ReaderDocument.java` | Created |
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/ReaderPage.java` | Created |
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/ReaderHtmlWriter.java` | Created |
+| `codex-ir-app/src/test/java/codex/apps/siteexporter/Pdf2HtmlExDetectorTest.java` | Created |
+| `codex-ir-app/src/test/java/codex/apps/siteexporter/Pdf2HtmlExTextExtractorTest.java` | Created |
+| `codex-ir-app/src/test/java/codex/apps/siteexporter/ReaderHtmlWriterTest.java` | Created |
+| `codex-ir-app/src/test/resources/fixtures/pdf2htmlex/deeplearning_part1.html` | Created |
+
+### Validation
+
+```
+mvn test -pl codex-ir-web,codex-ir-app
+Tests run: 230, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+```
+
+- `Pdf2HtmlExDetectorTest` — 11 tests, 0 failures
+- `Pdf2HtmlExTextExtractorTest` — 19 tests, 0 failures
+- `ReaderHtmlWriterTest` — 13 tests, 0 failures
+- `writerOutputShouldRenderToValidPdfViaOpenHtmlToPdf` confirms the full extract→write→render path produces a valid PDF with `%PDF` magic bytes
+
+Extracted text validation (from fixture):
+- `"Part I"` ✓
+- `"Applied Math and Machine Learning Basics"` ✓
+- `"This part of the book introduces"` ✓
+
+Generated reader HTML renders without overlapping text: confirmed by the successful OpenHTMLToPDF render test.
+
+**Note:** Validation against a real Deep Learning Book pdf2htmlEX export is pending. Provide the sample file to add it as an additional test fixture.
+
+### Tests
+
+| Test | Class | Status |
+|---|---|---|
+| `detectDocumentShouldThrowWhenDocumentIsNull` | `Pdf2HtmlExDetectorTest` | Added |
+| `detectShouldReturnTrueWhenMetaGeneratorContainsPdf2HtmlEx` | `Pdf2HtmlExDetectorTest` | Added |
+| `detectShouldReturnTrueWhenMetaGeneratorIsCaseInsensitive` | `Pdf2HtmlExDetectorTest` | Added |
+| `detectShouldReturnTrueWhenCreatedByCommentInBody` | `Pdf2HtmlExDetectorTest` | Added |
+| `detectShouldReturnTrueWhenStructuralFingerprintPresent` | `Pdf2HtmlExDetectorTest` | Added |
+| `detectShouldReturnTrueForFixtureFile` | `Pdf2HtmlExDetectorTest` | Added |
+| `detectShouldReturnFalseForRegularHtmlPage` | `Pdf2HtmlExDetectorTest` | Added |
+| `detectShouldReturnFalseWhenOnlyPageContainerIsPresentWithoutPfAndT` | `Pdf2HtmlExDetectorTest` | Added |
+| `detectShouldReturnFalseForEmptyDocument` | `Pdf2HtmlExDetectorTest` | Added |
+| (+ 2 null guard tests) | `Pdf2HtmlExDetectorTest` | Added |
+| `extractShouldReturnEmptyDocumentWhenNoPfDivsPresent` | `Pdf2HtmlExTextExtractorTest` | Added |
+| `extractShouldUseDocumentTitleAsPresentInHead` | `Pdf2HtmlExTextExtractorTest` | Added |
+| `extractShouldProduceOneReaderPagePerPfDiv` | `Pdf2HtmlExTextExtractorTest` | Added |
+| `extractShouldUseDataPageNoAttributeWhenPresent` | `Pdf2HtmlExTextExtractorTest` | Added |
+| `extractShouldPreserveDocumentOrderWhenNoCssCoordinatesArePresent` | `Pdf2HtmlExTextExtractorTest` | Added |
+| `extractFromFixtureShouldContainPartI` | `Pdf2HtmlExTextExtractorTest` | Added |
+| `extractFromFixtureShouldContainSubtitle` | `Pdf2HtmlExTextExtractorTest` | Added |
+| `extractFromFixtureShouldContainBodyTextPrefix` | `Pdf2HtmlExTextExtractorTest` | Added |
+| `extractFromFixtureShouldSortPartIBeforeSubtitle` | `Pdf2HtmlExTextExtractorTest` | Added |
+| `extractFromFixtureShouldJoinBodyLinesToSingleParagraph` | `Pdf2HtmlExTextExtractorTest` | Added |
+| (+ 9 more unit tests) | `Pdf2HtmlExTextExtractorTest` | Added |
+| `writeShouldProduceOnePageDivPerReaderPage` | `ReaderHtmlWriterTest` | Added |
+| `writeShouldWrapEachParagraphInPTag` | `ReaderHtmlWriterTest` | Added |
+| `writeShouldEscapeAmpersandsInParagraphText` | `ReaderHtmlWriterTest` | Added |
+| `writeShouldContainNoScriptElements` | `ReaderHtmlWriterTest` | Added |
+| `writeShouldContainNoAtFontFaceDeclarations` | `ReaderHtmlWriterTest` | Added |
+| `writerOutputShouldRenderToValidPdfViaOpenHtmlToPdf` | `ReaderHtmlWriterTest` | Added |
+| `writerOutputShouldContainAllValidationStrings` | `ReaderHtmlWriterTest` | Added |
+| (+ 6 more unit tests) | `ReaderHtmlWriterTest` | Added |
+
+### Engineering Notes
+
+- CSS coordinates in pdf2htmlEX use class names like `.x0`, `.y3`, `.h1` mapped in the `<style>` block. The pattern `\.(x|y|h)(\d+)\s*\{\s*(left|bottom|top|height)\s*:\s*(-?[\d.]+)px` is robust enough for both compact (no spaces) and expanded CSS formats.
+- Bottom-based y coordinates (the pdf2htmlEX default): higher `bottom:` value = closer to the top of the page. Sorted descending to achieve top-to-bottom reading order.
+- Line grouping uses a 2 px tolerance (spans whose y values differ by < 2 px are on the same text line). In practice pdf2htmlEX generates identical y values for co-linear spans.
+- Paragraph grouping uses a 1.5× average-line-height threshold. For the fixture this correctly separates the heading, subtitle, and body paragraph, while joining the four continuation lines into one paragraph.
+- `Pdf2HtmlExDetector` uses three independent signals so that pages with only structural markup (no meta tag) are still correctly identified.
+- `ReaderHtmlWriter` escapes `&`, `<`, `>` in all user text to prevent broken HTML. The `mdash` page-number separator is output as `&mdash;` (named entity), which OpenHTMLToPDF supports.
+
+### Decisions
+
+- **Synthetic test fixture over real sample**: no real pdf2htmlEX file was available at the time of implementation. The fixture is designed to match the exact CSS coordinate format that pdf2htmlEX uses, with coordinate values that exercise the line-grouping and paragraph-grouping logic precisely.
+- **No integration into `PublicationPipeline` yet**: the four classes are self-contained and independently testable. Wiring them into the pipeline is a separate, well-defined follow-up.
+- **`Pdf2HtmlExTextExtractor.extract(Document)` takes a Jsoup Document** to avoid double-parsing in callers that already hold a parsed document (e.g., the detector).
+
+### Tradeoffs
+
+- **Regex CSS parsing vs. a full CSS parser:** A full CSS parser would handle edge cases like `@charset`, nested `@media` blocks, and multi-value shorthand properties. In practice, pdf2htmlEX generates highly predictable CSS with one coordinate rule per class; the regex is sufficient and avoids a new dependency.
+- **Gap threshold of 1.5× vs. fixed px value:** Adapts to the document's actual line height rather than assuming a specific font size. Performs correctly for both 9pt footnotes and 24pt headings in the fixture.
+
+### Risks
+
+- **Coordinate class name conflicts**: if a page's CSS reuses `.x0`, `.y0`, `.h0` class names for non-pdf2htmlEX purposes (unlikely given how specific this pattern is), coordinates could be misread.
+- **Horizontal text runs**: the extractor joins spans on the same line with a single space. For languages without spaces (CJK), this is incorrect. Not a concern for the Deep Learning Book use case.
+- **Multi-column layouts**: column text would be sorted left-to-right across the full page width, mixing the two columns. A more advanced implementation would need column detection.
+
+### Known Limitations
+
+- Real pdf2htmlEX files have not been tested. The synthetic fixture exercises the logic but does not guarantee correctness against actual exported Deep Learning Book chapters.
+- Images embedded in pdf2htmlEX pages (base64 `<img>` elements) are silently dropped. Only text spans with class `.t` are extracted.
+- Table structure is not preserved; table cells are extracted as sequential text spans.
+
+### Follow-ups
+
+1. Wire `Pdf2HtmlExDetector` + `Pdf2HtmlExTextExtractor` + `ReaderHtmlWriter` into the `PublicationPipeline` as a pre-render step: detect pdf2htmlEX pages and rewrite them to reader HTML before passing to `PdfRenderer`.
+2. Validate the extractor against a real Deep Learning Book pdf2htmlEX export once the user provides the sample.
+3. Add a two-column detection heuristic: if spans appear in two distinct x-bands, process each column independently.
+4. Consider caching the `CssCoordinates` parse result when extracting many pages from the same document (currently re-parsed per call, but all pages share the same style blocks).
+
+### Next Step
+
+Integrate `Pdf2HtmlExDetector` and the extraction pipeline into `PublicationPipeline.run()` so that pdf2htmlEX pages are automatically rewritten to reader HTML before rendering, bypassing the problematic original layout.
+
+## Phase 10.6 — Print-Friendly HTML Sanitization
+
+### Summary
+
+Extended `HtmlToXhtmlSanitizer` with a `sanitizeForPrint` method that prepares HTML for PDF rendering by removing JavaScript and stripping inlined base64 font declarations — the two CSS-level patterns most likely to cause OpenHTMLToPDF to fail or produce oversized intermediate documents. `OpenHtmlToPdfRenderer` now uses this method instead of plain `sanitize`, gains an optional `debugDir` that captures the sanitized XHTML on render failure, and reports the root-cause exception message in its `IOException` rather than the previous opaque string.
+
+### Scope
+
+**Included:**
+- `HtmlToXhtmlSanitizer.sanitizeForPrint` — removes `<script>` elements; strips `@font-face` blocks whose `src` uses a `data:` URI; removes the `<style>` element entirely if it becomes empty after stripping
+- `OpenHtmlToPdfRenderer` — uses `sanitizeForPrint`; new `Path debugDir` constructor; debug XHTML written to `<debugDir>/<htmlFileName>.xhtml` on failure; improved error message includes root-cause text
+- Tests for all new behaviour (20 sanitizer tests, 15 renderer tests)
+
+**Excluded:**
+- CSS url(data:…) rewriting for images
+- Inlining external resources
+- Crawler or manifest changes
+- Playwright / headless rendering path
+
+### Deliverables
+
+- Updated `HtmlToXhtmlSanitizer.java` — `sanitizeForPrint` method + `FONT_FACE_DATA_URI` pattern + extracted `toXhtml` helper; `final` removed to allow test subclassing
+- Updated `OpenHtmlToPdfRenderer.java` — `debugDir` field, `(Path)` constructor, `writeDebugXhtmlQuietly`, improved error message
+- Updated `HtmlToXhtmlSanitizerTest.java` — 8 new tests for `sanitizeForPrint` (20 total)
+- Updated `OpenHtmlToPdfRendererTest.java` — 5 new tests: base64 font-face, inline scripts, failure message, debug XHTML write, no debug on success (15 total)
+
+### Changed Files
+
+| File | Change |
+|---|---|
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/HtmlToXhtmlSanitizer.java` | Extended |
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/OpenHtmlToPdfRenderer.java` | Extended |
+| `codex-ir-app/src/test/java/codex/apps/siteexporter/HtmlToXhtmlSanitizerTest.java` | Extended |
+| `codex-ir-app/src/test/java/codex/apps/siteexporter/OpenHtmlToPdfRendererTest.java` | Extended |
+
+### Validation
+
+```
+mvn test -pl codex-ir-web,codex-ir-app
+Tests run: 187, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+```
+
+- `HtmlToXhtmlSanitizerTest` — 20 tests, 0 failures
+- `OpenHtmlToPdfRendererTest` — 15 tests, 0 failures
+- `renderShouldProducePdfFromHtmlWithInlinedBase64FontFace` confirms a 2 KB simulated WOFF2 base64 block is stripped and PDF renders correctly
+- `renderShouldWriteDebugXhtmlWhenRenderFails` confirms the debug XHTML is written and the debug dir is auto-created
+- `renderShouldNotWriteDebugXhtmlOnSuccess` confirms the debug dir is never created on successful renders
+
+### Tests
+
+| Test | Class | Status |
+|---|---|---|
+| `sanitizeForPrintShouldThrowWhenHtmlIsNull` | `HtmlToXhtmlSanitizerTest` | Added |
+| `sanitizeForPrintShouldThrowWhenBaseUriIsNull` | `HtmlToXhtmlSanitizerTest` | Added |
+| `sanitizeForPrintShouldRemoveScriptElements` | `HtmlToXhtmlSanitizerTest` | Added |
+| `sanitizeForPrintShouldStripFontFaceBlockWithDataUri` | `HtmlToXhtmlSanitizerTest` | Added |
+| `sanitizeForPrintShouldRemoveEntireStyleBlockWhenOnlyFontFaceDataRemains` | `HtmlToXhtmlSanitizerTest` | Added |
+| `sanitizeForPrintShouldPreserveNonDataUriFontFace` | `HtmlToXhtmlSanitizerTest` | Added |
+| `sanitizeForPrintShouldPreserveSemanticContentElements` | `HtmlToXhtmlSanitizerTest` | Added |
+| `sanitizeForPrintShouldProduceValidXhtmlWithSelfClosedVoidElements` | `HtmlToXhtmlSanitizerTest` | Added |
+| `renderShouldProducePdfFromHtmlWithInlinedBase64FontFace` | `OpenHtmlToPdfRendererTest` | Added |
+| `renderShouldProducePdfFromHtmlWithInlineScripts` | `OpenHtmlToPdfRendererTest` | Added |
+| `renderFailureMessageShouldIncludeFilePathAndRootCause` | `OpenHtmlToPdfRendererTest` | Added |
+| `renderShouldWriteDebugXhtmlWhenRenderFails` | `OpenHtmlToPdfRendererTest` | Added |
+| `renderShouldNotWriteDebugXhtmlOnSuccess` | `OpenHtmlToPdfRendererTest` | Added |
+
+### Engineering Notes
+
+- `@font-face` detection uses `[^}]*data:[^}]*` which is safe because CSS `@font-face` blocks never contain nested braces and base64 characters (`[A-Za-z0-9+/=]`) do not include `}`.
+- `writeDebugXhtmlQuietly` silently swallows any write error so a filesystem problem never masks the original render failure.
+- `HtmlToXhtmlSanitizer` has `final` removed solely to allow anonymous subclassing in tests (the broken-sanitizer pattern for forcing a render failure). The class is not designed as an extension point.
+- `toXhtml(Document)` is extracted as a private static helper shared by both `sanitize` and `sanitizeForPrint`.
+
+### Decisions
+
+- `sanitizeForPrint` is a separate method rather than a flag on `sanitize` — two distinct concerns with different contracts, and the existing `sanitize` signature is used in tests that expect no stripping.
+- Debug dir is a constructor argument on `OpenHtmlToPdfRenderer` rather than a field on `PdfRenderOptions` — keeps the options record small and avoids a breaking change to the two-arg constructor used in existing tests.
+- Debug dir is created automatically (`Files.createDirectories`) so callers need not pre-create it.
+
+### Tradeoffs
+
+- **Regex vs. CSS parser for @font-face stripping:** Regex is fragile if a `@font-face` block were to contain `}` inside a string value. In practice no CSS property value includes a literal `}` outside of a string, and adding a full CSS parser would require a new dependency (disallowed by project rules). Regex is acceptable here.
+- **Removing all `<script>` vs. only risky scripts:** Simpler and safer for PDF rendering, where JavaScript execution is meaningless. No content lost.
+
+### Risks
+
+- Regex `[^}]*data:[^}]*` will incorrectly strip a `@font-face` block if a property value legitimately contained the substring `data:` without being a data URI (e.g. a comment). This is an extremely unlikely edge case in real-world CSS.
+- If `debugDir` points to a location without write permission, the debug file is silently skipped. No user-visible warning is emitted.
+
+### Known Limitations
+
+- CSS `url(data:…)` in `background-image` or other properties is not stripped — only `@font-face src:` data URIs are removed. Real-world pages may include large base64 images in CSS; those are left for a future phase.
+- External CSS files (via `<link rel="stylesheet">`) are not fetched or filtered; only inline `<style>` blocks are processed.
+
+### Follow-ups
+
+1. Strip base64 `url(data:…)` in CSS properties beyond `@font-face` (e.g. `background-image`).
+2. Add a page-level render timeout so a single malformed page can't block the pipeline indefinitely.
+3. Emit a warning log line when `writeDebugXhtmlQuietly` catches an IOException (currently fully silent).
+4. Consider adding a `PdfRenderDiagnostics` record to surface per-page render outcomes (success, skipped, failed + cause) for the assembly report.
+
+### Next Step
+
+Integrate the debug-dir option into `ManifestOrderPdfAssemblyStrategy` so that failed pages surface a debug XHTML under `<outputDir>/render-debug/` automatically during a full site export run.
+
+## Phase 10.5 — HTML Sanitization Before PDF Rendering
+
+### Summary
+
+Introduced `HtmlToXhtmlSanitizer` to convert raw mirrored HTML to well-formed XHTML before handing it to OpenHTMLToPDF, which requires XML-compliant input. Without this step, real-world pages with bare `<br>`, `<meta>`, unclosed `<p>` or `<img>` tags fail to render. `OpenHtmlToPdfRenderer` now reads the file, sanitizes it via Jsoup XML output mode, then passes the clean XHTML string to `PdfRendererBuilder.withHtmlContent()`.
+
+### Scope
+
+**Included:**
+- `HtmlToXhtmlSanitizer` — Jsoup parse + XML/XHTML output settings
+- `OpenHtmlToPdfRenderer` — now sanitizes before rendering; accepts injected sanitizer for tests
+- Tests for sanitizer (12) and renderer with malformed HTML (5 new)
+
+**Excluded:**
+- Crawler changes
+- Manifest changes
+- Assembly changes
+- Playwright
+- CSS url(...) rewriting
+- Inlining external resources
+
+### Deliverables
+
+- `HtmlToXhtmlSanitizer.java` — new class
+- `HtmlToXhtmlSanitizerTest.java` — 12 tests
+- Updated `OpenHtmlToPdfRenderer.java` — sanitizer field + package-private constructor for injection
+- Updated `OpenHtmlToPdfRendererTest.java` — 5 new malformed-HTML round-trip tests
+
+### Changed Files
+
+| File | Change |
+|---|---|
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/HtmlToXhtmlSanitizer.java` | Created |
+| `codex-ir-app/src/test/java/codex/apps/siteexporter/HtmlToXhtmlSanitizerTest.java` | Created |
+| `codex-ir-app/src/main/java/codex/apps/siteexporter/OpenHtmlToPdfRenderer.java` | Updated |
+| `codex-ir-app/src/test/java/codex/apps/siteexporter/OpenHtmlToPdfRendererTest.java` | Updated |
+
+### Validation
+
+```
+mvn test -pl codex-ir-web,codex-ir-app
+Tests run: 174, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+```
+
+- `HtmlToXhtmlSanitizerTest` — 12 tests, 0 failures
+- `OpenHtmlToPdfRendererTest` — 10 tests (was 5; added 5 malformed-HTML tests), 0 failures
+
+### Tests
+
+| Test class | Tests | What is covered |
+|---|---|---|
+| `HtmlToXhtmlSanitizerTest` | 12 | Null guards; bare `<br>`; bare `<meta charset>`; bare `<img>`; bare `<link>`; unclosed `<p>` tags; leading whitespace before doctype; leading HTML comments; missing html/head/body structure; text content preserved |
+| `OpenHtmlToPdfRendererTest` (new) | 5 | Bare `<meta charset>`; bare `<br>` tags; unclosed `<p>` tags; leading whitespace + doctype; mixed void elements — all produce `%PDF` output |
+
+### Engineering Notes
+
+- Jsoup `Document.OutputSettings.Syntax.xml` makes Jsoup serialize void elements as self-closing (`<br />`, `<meta ... />`) and ensures all non-void elements are explicitly closed. This is exactly what OpenHTMLToPDF expects.
+- `escapeMode(Entities.EscapeMode.xhtml)` ensures HTML entities are output in XHTML-compatible form.
+- `charset(StandardCharsets.UTF_8)` keeps the output UTF-8 regardless of platform default.
+- The `baseUri` is passed to `Jsoup.parse()` for in-document link resolution during parsing. It is not written into the output string; it is passed separately to `withHtmlContent()` for OpenHTMLToPDF asset resolution.
+- `OpenHtmlToPdfRenderer` gains a package-private constructor `OpenHtmlToPdfRenderer(HtmlToXhtmlSanitizer)` to allow injection in tests without changing the public API.
+- One test needed a fix during development: the original `sanitizeShouldSelfCloseImgElement` checked `!result.contains("<img src")`, which is always false because `<img src="..." />` also starts with `<img src`. Fixed to check `!result.contains("alt=\"logo\">")` (the bare closing `>` after attributes).
+
+### Decisions
+
+- Used Jsoup rather than a DOM/SAX transformer. Jsoup is already on the classpath and handles real-world broken HTML far better than standard XML parsers.
+- Sanitizer is injected into `OpenHtmlToPdfRenderer` via a package-private constructor rather than making `HtmlToXhtmlSanitizer` an interface. The sanitizer has one correct implementation and the injection point is only for tests, so the full Interface+Factory pattern is not warranted.
+
+### Tradeoffs
+
+| Choice | Alternative | Reason |
+|---|---|---|
+| Jsoup XML output mode | Manual regex cleanup | Jsoup handles all the edge cases (implicit closing, entity encoding, attribute quoting) correctly |
+| Package-private constructor for test injection | Public constructor or mocking | Avoids leaking test-only API surface while still allowing injection |
+| Pass `baseUri` to both Jsoup and OpenHTMLToPDF | Pass only to OpenHTMLToPDF | Gives Jsoup accurate context for relative URL normalization during parsing |
+
+### Risks
+
+- Jsoup's HTML5 parser may alter some elements (e.g., move `<style>` from body to head, fix table structure). For PDF output this is generally harmless, but it means the XHTML passed to OpenHTMLToPDF may differ structurally from the original HTML.
+- Very large HTML files will be held as a string in memory twice (raw + XHTML). This is acceptable for typical mirrored pages.
+
+### Known Limitations
+
+- Inline CSS `url(...)` references remain unmodified — relative asset paths inside stylesheets still depend on the `baseUri` being set correctly.
+- External stylesheets referenced by relative `href` are resolved by OpenHTMLToPDF using the `baseUri`, which points to the local mirror directory. This works only if the assets were downloaded in Phase 6A.
+
+### Follow-ups
+
+- Phase 11: review `PublicationFormat` abstraction for ePub readiness.
+- Consider adding a charset-detection step before sanitization for pages that declare a non-UTF-8 charset.
+- Log sanitizer warnings (e.g., Jsoup parse error count) into the `AssemblyReport`.
+
+### Next Step
+
+Phase 11 — Future Format Readiness: review `PublicationFormat` abstraction, confirm no PDF-only concepts leak into the generic pipeline, and document the ePub extension point.
+
+---
+
 ## Phase 10 — PDF Assembly
 
 ### Summary
