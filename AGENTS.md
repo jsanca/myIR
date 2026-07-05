@@ -8,6 +8,17 @@
 - **Full verification:** `mvn compile && mvn test-compile && mvn test`
 - **Requires Java 25.** Maven is pinned to source=25 target=25 in `pom.xml`. No other JDK version will work.
 - **Playwright prerequisite:** `npx playwright install` must be run once before any crawler test that touches `WebPageFetcher`. Without browser binaries, the Playwright dependency will fail at runtime.
+- **No Maven wrapper.** Install Maven directly (any recent version).
+
+## Running the application
+
+| Entry point | Command |
+|---|---|
+| `codex.Main` (in-memory indexing + search demos) | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.Main"` |
+| `codex.QuickDiscoveryRunner` | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.QuickDiscoveryRunner"` |
+| `codex.apps.siteexporter.SiteExporterCommand` | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.apps.siteexporter.SiteExporterCommand" -Dexec.args="--url https://example.com/"` |
+
+For full SiteExporter parameter reference, see `README.md`.
 
 ## Module layout
 
@@ -17,19 +28,17 @@ Three Maven modules, each with its own `module-info.java` (JPMS):
 |---|---|---|
 | `codex-ir-core` | `codex.ir.core` | Core IR engine — indexing, search, ranking, vectors |
 | `codex-ir-web` | `codex.ir.web` | Web crawling, ingestion, canonicalization, product extraction |
-| `codex-ir-app` | `codex.ir.app` | Entry point (`codex/Main.java`) |
+| `codex-ir-app` | `codex.ir.app` | Application entry points (`codex.Main`, `codex.apps.siteexporter.SiteExporterCommand`) |
 
-Dependency direction: `app → web → core`. The `module-info.java` files are the authoritative source for exported vs. internal packages. Internal packages under `codex.ir.web` (`crawler/internal/`, `crawler/fetcher/`, `web/util/`) are inaccessible to `app`.
+Dependency direction: `app → web → core`. The `module-info.java` files are the authoritative source for exported vs. internal packages. Internal packages under `codex.ir.web` (`ingestion/crawler/fetcher/`, `ingestion/crawler/internal/*`, `web/util/`) are inaccessible to `app`.
 
-**Package quick reference — `codex-ir-core`:** `corpus/`, `indexer/`, `normalizer/`, `tokenizer/`, `ranking/`, `search/`, `vector/` (+ `vector/store/`), `weight/`, `concurrent/`, `util/` (internal — not JPMS-exported).
+**Core packages (`codex.ir.*`):** `corpus/`, `corpus/vector/`, `indexer/`, `normalizer/`, `tokenizer/`, `ranking/`, `search/`, `vector/`, `vector/store/`, `weight/`, `concurrent/`, `util/` (internal — not JPMS-exported).
 
-**Package quick reference — `codex-ir-web`:**
-- **Exported:** `canonicalizer/`, `ingestion/`, `ingestion/crawler/`, `ingestion/crawler/classifier/`, `ingestion/crawler/filter/`, `ingestion/crawler/metadata/`, `ingestion/crawler/product/`
-- **Internal (not exported):** `ingestion/crawler/fetcher/`, `ingestion/crawler/internal/*` (classifier/, sitemap/, traversal/, product/, metadata/, text/), `web/util/`
+**Web exported packages (`codex.ir.*`):** `canonicalizer/`, `ingestion/`, `ingestion/crawler/`, `ingestion/crawler/classifier/`, `ingestion/crawler/filter/`, `ingestion/crawler/metadata/`, `ingestion/crawler/product/`.
 
 ## Architecture
 
-- **Interface + Factory pattern.** Every domain concept: `Xxx` interface + `Xxxes` static factory class. Implementations are `private`/package-private inner classes of the factory. Callers use the interface type exclusively. Core examples: `Corpus`/`Corpora`, `Indexer`/`Indexers`, `Ranker`/`Rankers`, `Searcher`/`Searchers`, `Normalizer`/`Normalizers`, `Tokenizer`/`Tokenizers`. Web examples: `UriCanonicalizer`/`UriCanonicalizers`, `PageClassifier`/`PageClassifiers`, `ProductDiscoverer`/`ProductDiscoverers`. All follow this same shape.
+- **Interface + Factory pattern.** Every domain concept: `Xxx` interface + `Xxxes` static factory class. Implementations are package-private inner classes of the factory. Callers use the interface type exclusively. Core examples: `Corpus`/`Corpora`, `Indexer`/`Indexers`, `Ranker`/`Rankers`, `Searcher`/`Searchers`, `Normalizer`/`Normalizers`, `Tokenizer`/`Tokenizers`. Web examples: `UriCanonicalizer`/`UriCanonicalizers`, `PageClassifier`/`PageClassifiers`, `ProductDiscoverer`/`ProductDiscoverers`.
 - **Domain types are Java records.** `Document`, `Posting`, `SearchResult`, `SparseDocumentVector`, `WebPage`, `PageMetadata`, etc. No bare `Map<String,Object>`.
 - **Document field aggregation.** When `Document.fields` is non-empty, the `DocumentPreprocessor` aggregates field values as content to normalize instead of `rawContent`. Falls back to `rawContent` if all field values are blank.
 - **In-memory only (by design).** All core structures (corpus, inverted index, vector store, vocabulary) live in memory. See `docs/ADR-003.md`. Do not introduce persistence without explicit request.
@@ -60,7 +69,7 @@ When a record needs incremental construction or copy-with-modifications, add a `
 Application-specific code must not leak into reusable modules:
 - `codex-ir-core` must remain domain-agnostic (no web concepts).
 - `codex-ir-web` may contain reusable crawling, fetching, robots, sitemap, URI, and web traversal primitives.
-- Concrete applications (SYJ scraping, site exporters) live under `codex-ir-app`.
+- Concrete applications (site exporter, SYJ scraping) live under `codex-ir-app`.
 - New dependencies such as PDF or ePub renderers must be placed behind ports/interfaces.
 
 ## Resources
@@ -70,3 +79,11 @@ Application-specific code must not leak into reusable modules:
 - `Normalizers.StopWordNormalizer` resolves stop-word files via `IR_STOPWORDS_PATH` env var, then `classpath:` or `file:` prefix, falling back to `/stopwords.txt`
 - HTML fixture files for web tests: `codex-ir-web/src/test/resources/fixtures/`
 - Every package has a `package-info.java` describing its purpose — read before adding types to a new package.
+
+## Project conventions
+
+- **No CI, no pre-commit, no Makefile** — nothing to look for or satisfy.
+- **`reports/`** contains generated JSON crawl outputs — do not edit.
+- **`docs/apps/site-exporter/ENGINEERING_LOG.md`** — engineering history for the site exporter application. Read before modifying the site exporter.
+- **`docs/tasks/`** — task specifications and test cases for major features.
+- **`module-info.java`** (in `codex-ir-app`) opens `codex.apps.siteexporter` to `com.fasterxml.jackson.databind` for Jackson reflection on Builder constructors.
