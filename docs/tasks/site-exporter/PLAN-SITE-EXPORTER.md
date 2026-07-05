@@ -805,4 +805,121 @@ Markdown should be treated as a first-class publication format, not as a debug d
 ```
 
 
+````markdown
+# Phase 11 — EPUB Publication Driver
+
+## Goal
+
+Add EPUB as a third publication output format using the `PublicationDriver` architecture.
+
+EPUB should be reader-mode first: readable chapters, correct order, simple structure. Do not attempt pixel-perfect conversion of mirrored HTML.
+
+## Dependency preference
+
+Try Maven Central first:
+
+```xml
+<dependency>
+  <groupId>com.positiondev.epublib</groupId>
+  <artifactId>epublib-core</artifactId>
+  <version>3.1</version>
+</dependency>
+````
+
+Only if this fails, evaluate the original `nl.siegmann.epublib` artifact with the custom repository.
+
+## Required behavior
+
+```text
+MirrorManifest
+→ PublicationOrderingStrategy
+→ readable text extraction
+→ EPUB chapters
+→ book.epub
+```
+
+## Deliverables
+
+```text
+- EpubPublicationDriver
+- EPUB support in PublicationDrivers.forFormat()
+- PublicationFormat.EPUB wired if not already usable
+- One EPUB chapter per successful mirrored page
+- Basic title
+- Basic table of contents / spine order
+- Tests
+- ENGINEERING_LOG.md entry
+```
+
+## Scope
+
+Included:
+
+```text
+- pdf2htmlEX pages use existing reader extraction
+- normal HTML pages use the same extraction path as Markdown if possible
+- publication order follows PublicationOrderingStrategy
+- output file is a valid .epub
+```
+
+Excluded:
+
+```text
+- images
+- custom CSS
+- complex layout preservation
+- footnotes
+- perfect heading hierarchy
+- EPUB metadata beyond minimal title/author if easy
+```
+
+## Validation
+
+```text
+- EPUB file is created
+- EPUB file is non-empty
+- EPUB zip contains mimetype, META-INF/container.xml, OPF/nav/chapter resources as applicable
+- Extracted content contains expected pdf2htmlEX strings
+- Chapter order follows discoveredOrder
+- PublicationArtifact.format == EPUB
+- SiteExporterCommand can run with --format epub
+```
+
+## Design constraint
+
+Do not add EPUB branching to `SiteExporterCommand`.
+
+EPUB must enter through:
+
+```text
+PublicationDrivers.forFormat(EPUB, outputDir)
+```
+
+The command should remain format-agnostic after driver selection.
+
+## Engineering notes
+
+Prefer reusing Markdown/reader extraction logic rather than duplicating text extraction inside the EPUB driver. If reuse is awkward, create a small shared helper such as:
+
+```text
+ReadablePageExtractor
+```
+
+that both Markdown and EPUB can use.
+
+## Completion report
+
+Report:
+
+```text
+- dependency chosen
+- driver added
+- command wiring status
+- tests run
+- EPUB limitations
+```
+
+```
+```
+
 
