@@ -130,27 +130,42 @@ join → split → join → split
 * Tokens and normalizedContent are consistent
 
 ---
-
-# IR-2 — Field Provenance
+----------
+# IR-2 — Field Provenance Artifact
 
 ## Goal
+Preserve per-field token provenance without changing ranking or postings yet.
 
-Preserve per-field tokens without changing ranking yet.
+## Design
+Do not overload `Document` or keep growing `PreprocessedDocument`.
 
-## Deliverables
+Introduce a new pipeline artifact:
 
-* `fieldTokens: Map<String, List<String>>`
-* Blank fields ignored
-* rawContent fallback intact
-* Field strings remain allowed
 
-## Validation
+FieldAnalyzedDocument
 
-* title/body produce separate tokens
-* Field boundaries are not lost in the artifact
-* Whole-document mode remains unchanged
+containing:
 
----
+PreprocessedDocument base
+field token sequences, e.g. List<FieldTokenSequence>
+
+Each FieldTokenSequence should carry:
+
+field name
+ordered normalized tokens
+        Constraints
+DocumentMetadata.termFrequencies remains whole-document only.
+No ranking changes.
+No posting changes yet.
+No field boosts yet.
+Whole-document search behavior must remain identical.
+Validation
+title/body field tokens are preserved separately.
+blank fields are ignored.
+rawContent fallback still works.
+whole-document tokens remain unchanged.
+lexical and vector search still pass existing tests.
+
 
 # IR-3 — Field-Aware Postings
 

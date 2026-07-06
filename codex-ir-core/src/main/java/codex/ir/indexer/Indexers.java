@@ -165,23 +165,24 @@ public final class Indexers {
      * @author jsanca & elo
      */
     /**
-     * Strategy interface for pipeline stages that need to resolve the document
-     * view they want to consume before indexing.
-     * <p>
-     * The default pipeline behavior is to pass the preprocessed document as-is.
-     * Implementations of this interface may opt into a different document view,
-     * such as one retrieved or derived from the corpus.
+     * Marker for pipeline stages that require per-field token provenance.
+     * Receives the full {@link FieldAnalyzedDocument} from the pipeline.
+     * Takes priority over {@link PreprocessedDocumentConsumer}.
      */
     @FunctionalInterface
-    private interface PipelineDocumentResolver {
+    private interface FieldAnalyzedDocumentConsumer {
+        void index(FieldAnalyzedDocument fieldAnalyzedDocument);
+    }
 
-        /**
-         * Resolves the document instance that should be consumed by the stage.
-         *
-         * @param document the preprocessed document produced by the pipeline
-         * @return the document view to pass to the indexing stage
-         */
-        Document resolveDocument(Document document);
+    /**
+     * Marker for pipeline stages that can consume a {@link PreprocessedDocument}
+     * directly, avoiding a redundant join→split cycle on {@code normalizedContent}.
+     * Stages that do not implement this interface receive
+     * {@code PreprocessedDocument.document()} instead.
+     */
+    @FunctionalInterface
+    private interface PreprocessedDocumentConsumer {
+        void index(PreprocessedDocument preprocessedDocument);
     }
 
     private static final class PipelineIndexer implements Indexer {
@@ -217,40 +218,26 @@ public final class Indexers {
 
             LOGGER.info("Starting pipeline indexing for document id={}", document.id());
 
-            final Document preprocessedDocument = this.documentPreprocessor.preprocess(document);
-            LOGGER.debug("Finished preprocessing for document id={}", preprocessedDocument.id());
+            final FieldAnalyzedDocument analyzed = this.documentPreprocessor.preprocess(document);
+            LOGGER.debug("Finished preprocessing for document id={}", analyzed.id());
 
-            for (final Indexer indexer : this.indexers) {
-                final Document stageDocument = resolveStageDocument(indexer, preprocessedDocument);
-
+            for (final Indexer stage : this.indexers) {
                 LOGGER.debug("Executing pipeline stage for document id={} with indexer {}",
-                        stageDocument.id(),
-                        indexer.getClass().getName());
-                indexer.index(stageDocument);
+                        analyzed.id(), stage.getClass().getName());
+
+                if (stage instanceof final FieldAnalyzedDocumentConsumer consumer) {
+                    consumer.index(analyzed);
+                } else if (stage instanceof final PreprocessedDocumentConsumer consumer) {
+                    consumer.index(analyzed.base());
+                } else {
+                    stage.index(analyzed.document());
+                }
+
                 LOGGER.debug("Finished pipeline stage for document id={} with indexer {}",
-                        stageDocument.id(),
-                        indexer.getClass().getName());
+                        analyzed.id(), stage.getClass().getName());
             }
 
-            LOGGER.info("Finished pipeline indexing for document id={}", preprocessedDocument.id());
-        }
-
-        private Document resolveStageDocument(final Indexer indexer,
-                                             final Document preprocessedDocument) {
-            Objects.requireNonNull(indexer, "indexer cannot be null");
-            Objects.requireNonNull(preprocessedDocument, "preprocessedDocument cannot be null");
-
-            if (indexer instanceof final PipelineDocumentResolver resolver) {
-                final Document resolvedDocument = Objects.requireNonNull(
-                        resolver.resolveDocument(preprocessedDocument),
-                        "resolvedDocument cannot be null");
-                LOGGER.debug("Resolved stage document id={} for indexer {}",
-                        resolvedDocument.id(),
-                        indexer.getClass().getName());
-                return resolvedDocument;
-            }
-
-            return preprocessedDocument;
+            LOGGER.info("Finished pipeline indexing for document id={}", analyzed.id());
         }
     } // PipelineIndexer
 
@@ -258,32 +245,30 @@ public final class Indexers {
      * Preprocesses raw documents into a canonical enriched form shared by all
      * indexing stages.
      * <p>
-     * The preprocessed document contains normalized content and derived lexical
-     * metadata such as document length, unique terms, and term frequencies.
+     * Produces a {@link FieldAnalyzedDocument} that pairs the whole-document
+     * {@link PreprocessedDocument} with per-field {@link FieldTokenSequence} entries.
      * <p>
-     * <b>Content resolution contract:</b>
+     * <b>Whole-document content resolution (unchanged):</b>
      * <ul>
      *   <li>If the document carries structured {@code fields} with at least one
      *       non-blank value, field values are aggregated into a single
-     *       whole-document content stream. {@code rawContent} is ignored in
-     *       this case.</li>
-     *   <li>If fields are absent or all-blank, {@code rawContent} is used as
-     *       the content source.</li>
-     *   <li>Field <em>names</em> (the keys in the fields map) are not
-     *       preserved past this preprocessing stage. After aggregation, the
-     *       downstream indexing and search pipeline sees only one
-     *       undifferentiated content stream.</li>
-     *   <li>The resulting {@code normalizedContent} is the single source used
-     *       by lexical indexing, vector indexing, and ranking for this
-     *       document.</li>
+     *       whole-document content stream. {@code rawContent} is ignored.</li>
+     *   <li>If fields are absent or all-blank, {@code rawContent} is used.</li>
+     *   <li>The resulting {@code normalizedContent}, token list, and
+     *       {@code termFrequencies} are whole-document only and are not affected
+     *       by per-field analysis.</li>
      * </ul>
      * <p>
-     * This is a deliberate whole-document model. The system does
-     * <em>not</em> currently support per-field indexing, field-aware ranking,
-     * or field weighting. Field provenance is intentionally discarded at the
-     * preprocessing boundary so that the rest of the pipeline remains simple
-     * and consistent. When field-aware features are added in the future, this
-     * preprocessing stage will be the primary integration point.
+     * <b>Per-field analysis (IR-2):</b>
+     * <ul>
+     *   <li>Each non-blank field is tokenized and normalized independently,
+     *       producing one {@link FieldTokenSequence} per field.</li>
+     *   <li>Blank fields are ignored and produce no sequence.</li>
+     *   <li>When rawContent fallback is used (all fields absent or blank),
+     *       {@code fieldSequences} is empty.</li>
+     *   <li>Per-field tokens are analysis artifacts only — they do not affect
+     *       ranking, postings, or search behavior in this slice.</li>
+     * </ul>
      */
     private static final class DocumentPreprocessor {
 
@@ -298,7 +283,7 @@ public final class Indexers {
             this.normalizer = Objects.requireNonNull(normalizer, "normalizer cannot be null");
         }
 
-        public Document preprocess(final Document document) {
+        public FieldAnalyzedDocument preprocess(final Document document) {
             Objects.requireNonNull(document, "document cannot be null");
 
             LOGGER.debug("Preprocessing document id={}", document.id());
@@ -306,28 +291,35 @@ public final class Indexers {
             if (isAlreadyPreprocessed(document)) {
                 LOGGER.debug("Document id={} already contains normalized metadata. Reusing as-is.",
                         document.id());
-                return document;
+                final List<String> existingTokens = document.normalizedContent() == null
+                        || document.normalizedContent().isBlank()
+                        ? List.of()
+                        : List.of(document.normalizedContent().split("\\s+"));
+                return new FieldAnalyzedDocument(
+                        new PreprocessedDocument(document, existingTokens), List.of());
             }
 
             final String content = resolveContent(document);
             if (content == null || content.isBlank()) {
                 LOGGER.debug("Document id={} has no content. Returning empty preprocessed document.",
                         document.id());
-                return Document.builder(document)
+                final Document empty = Document.builder(document)
                         .normalizedContent("")
                         .length(0)
                         .uniqueTerms(0)
                         .termFrequencies(Map.of())
                         .build();
+                return new FieldAnalyzedDocument(
+                        new PreprocessedDocument(empty, List.of()), List.of());
             }
 
-            final List<String> tokens = this.tokenizer.tokenize(content);
-            LOGGER.debug("Document id={} produced {} raw token(s)", document.id(), tokens.size());
+            final List<String> rawTokens = this.tokenizer.tokenize(content);
+            LOGGER.debug("Document id={} produced {} raw token(s)", document.id(), rawTokens.size());
 
             final List<String> normalizedTerms = new ArrayList<>();
             final Map<String, Integer> termFrequencies = new HashMap<>();
 
-            for (final String token : tokens) {
+            for (final String token : rawTokens) {
                 final Optional<String> normalized = this.normalizer.normalize(token);
                 LOGGER.trace("Token '{}' normalized to '{}'", token, normalized);
 
@@ -345,16 +337,66 @@ public final class Indexers {
             final int uniqueTermCount = termFrequencies.size();
 
             LOGGER.debug("Document id={} preprocessing produced length={} and uniqueTerms={}",
-                    document.id(),
-                    documentLength,
-                    uniqueTermCount);
+                    document.id(), documentLength, uniqueTermCount);
 
-            return Document.builder(document)
+            final Document preprocessedDoc = Document.builder(document)
                     .normalizedContent(normalizedContent)
                     .length(documentLength)
                     .uniqueTerms(uniqueTermCount)
                     .termFrequencies(termFrequencies)
                     .build();
+
+            final PreprocessedDocument base =
+                    new PreprocessedDocument(preprocessedDoc, List.copyOf(normalizedTerms));
+            final List<FieldTokenSequence> fieldSequences = analyzeFields(document);
+
+            LOGGER.debug("Document id={} produced {} field sequence(s)",
+                    document.id(), fieldSequences.size());
+
+            return new FieldAnalyzedDocument(base, fieldSequences);
+        }
+
+        /**
+         * Tokenizes and normalizes each non-blank field value independently,
+         * producing one {@link FieldTokenSequence} per field.
+         * Returns an empty list when no fields are present or all are blank
+         * (i.e. when rawContent fallback was used for whole-document content).
+         */
+        private List<FieldTokenSequence> analyzeFields(final Document document) {
+            final Map<String, String> fields = document.fields();
+            if (fields == null || fields.isEmpty()) {
+                return List.of();
+            }
+
+            final boolean anyNonBlank = fields.values().stream()
+                    .anyMatch(v -> v != null && !v.isBlank());
+            if (!anyNonBlank) {
+                return List.of();
+            }
+
+            final List<FieldTokenSequence> sequences = new ArrayList<>();
+            for (final Map.Entry<String, String> entry : fields.entrySet()) {
+                final String fieldValue = entry.getValue();
+                if (fieldValue == null || fieldValue.isBlank()) {
+                    continue;
+                }
+                final List<String> fieldTokens = normalizeTokens(fieldValue);
+                if (!fieldTokens.isEmpty()) {
+                    sequences.add(new FieldTokenSequence(entry.getKey(), fieldTokens));
+                }
+            }
+            return List.copyOf(sequences);
+        }
+
+        private List<String> normalizeTokens(final String text) {
+            final List<String> result = new ArrayList<>();
+            for (final String token : this.tokenizer.tokenize(text)) {
+                final Optional<String> normalized = this.normalizer.normalize(token);
+                if (normalized.isPresent() && !normalized.get().isBlank()) {
+                    result.add(normalized.get());
+                }
+            }
+            return result;
         }
 
         private boolean isAlreadyPreprocessed(final Document document) {
@@ -415,7 +457,8 @@ public final class Indexers {
      *
      * @author jsanca & elo
      */
-    private static final class LexicalIndexer implements Indexer {
+    private static final class LexicalIndexer implements Indexer, PreprocessedDocumentConsumer,
+            FieldAnalyzedDocumentConsumer {
 
         private static final Logger LOGGER = LoggerFactory.getLogger(LexicalIndexer.class);
 
@@ -428,6 +471,72 @@ public final class Indexers {
             this.index = Objects.requireNonNull(index, "index cannot be null");
         }
 
+        /**
+         * Primary path when called through the pipeline: indexes whole-document tokens
+         * then records per-field frequencies for field-structured documents.
+         */
+        @Override
+        public void index(final FieldAnalyzedDocument analyzed) {
+            Objects.requireNonNull(analyzed, "analyzed cannot be null");
+
+            index(analyzed.base());
+
+            if (!analyzed.hasFieldSequences()) {
+                return;
+            }
+
+            final String docId = analyzed.id();
+            for (final FieldTokenSequence seq : analyzed.fieldSequences()) {
+                for (final String term : seq.tokens()) {
+                    this.index.addFieldOccurrence(term, docId, seq.fieldName());
+                    LOGGER.trace("Recorded field occurrence term='{}' field='{}' docId='{}'",
+                            term, seq.fieldName(), docId);
+                }
+            }
+
+            LOGGER.debug("Recorded field frequencies for document id={} across {} field(s)",
+                    docId, analyzed.fieldSequences().size());
+        }
+
+        /**
+         * Whole-document indexing path: stores the document in the corpus and populates
+         * the inverted index from its pre-built token list.
+         */
+        @Override
+        public void index(final PreprocessedDocument preprocessed) {
+            Objects.requireNonNull(preprocessed, "preprocessed cannot be null");
+
+            final Document document = preprocessed.document();
+            LOGGER.info("Starting lexical indexing for document id={}", document.id());
+
+            this.corpus.add(document);
+            LOGGER.debug("Stored preprocessed document id={} in corpus", document.id());
+
+            final List<String> tokens = preprocessed.tokens();
+            if (tokens.isEmpty()) {
+                LOGGER.debug("Document id={} has no tokens. Skipping inverted index population.",
+                        document.id());
+                LOGGER.info("Finished lexical indexing for document id={}", document.id());
+                return;
+            }
+
+            LOGGER.debug("Document id={} produced {} token(s) for lexical indexing",
+                    document.id(), tokens.size());
+
+            for (int position = 0; position < tokens.size(); position++) {
+                final String term = tokens.get(position);
+                this.index.add(term, document.id(), position);
+                LOGGER.trace("Indexed term '{}' for document id={} at position={}",
+                        term, document.id(), position);
+            }
+
+            LOGGER.info("Finished lexical indexing for document id={}", document.id());
+        }
+
+        /**
+         * Fallback for callers that bypass the pipeline and pass a {@link Document}
+         * directly. Splits {@code normalizedContent} on whitespace for positional indexing.
+         */
         @Override
         public void index(final Document document) {
             Objects.requireNonNull(document, "document cannot be null");
@@ -448,16 +557,13 @@ public final class Indexers {
 
             final String[] normalizedTerms = normalizedContent.split("\\s+");
             LOGGER.debug("Document id={} produced {} normalized term(s) for lexical indexing",
-                    document.id(),
-                    normalizedTerms.length);
+                    document.id(), normalizedTerms.length);
 
             for (int position = 0; position < normalizedTerms.length; position++) {
                 final String term = normalizedTerms[position];
                 this.index.add(term, document.id(), position);
                 LOGGER.trace("Indexed term '{}' for document id={} at position={}",
-                        term,
-                        document.id(),
-                        position);
+                        term, document.id(), position);
             }
 
             LOGGER.info("Finished lexical indexing for document id={}", document.id());
@@ -485,7 +591,7 @@ public final class Indexers {
      *
      * @author jsanca & elo
      */
-    private static final class VectorIndexer implements Indexer, PipelineDocumentResolver {
+    private static final class VectorIndexer implements Indexer {
 
         private static final Logger LOGGER = LoggerFactory.getLogger(VectorIndexer.class);
 
@@ -525,12 +631,6 @@ public final class Indexers {
 
             this.documentVectorStore.save(sparseDocumentVector);
             LOGGER.info("Finished vector indexing for document id={}", document.id());
-        }
-
-        @Override
-        public Document resolveDocument(final Document document) {
-            Objects.requireNonNull(document, "document cannot be null");
-            return document;
         }
 
         /**
@@ -609,20 +709,20 @@ public final class Indexers {
 
             LOGGER.info("Starting batch indexing of {} document(s)", documents.size());
 
-            final List<Document> preprocessed = documents.stream()
+            final List<FieldAnalyzedDocument> analyzed = documents.stream()
                     .map(this.documentPreprocessor::preprocess)
                     .toList();
-            LOGGER.debug("Preprocessed {} document(s)", preprocessed.size());
+            LOGGER.debug("Preprocessed {} document(s)", analyzed.size());
 
-            preprocessed.forEach(this.lexicalIndexer::index);
-            LOGGER.debug("Lexically indexed {} document(s)", preprocessed.size());
+            analyzed.forEach(this.lexicalIndexer::index);
+            LOGGER.debug("Lexically indexed {} document(s)", analyzed.size());
 
             final CorpusSnapshot corpusSnapshot = this.corpus.snapshot();
             LOGGER.debug("Created corpus snapshot with {} document(s)", corpusSnapshot.size());
 
-            preprocessed.forEach(doc -> this.vectorIndexer.indexWithSnapshot(doc, corpusSnapshot));
+            analyzed.forEach(fa -> this.vectorIndexer.indexWithSnapshot(fa.document(), corpusSnapshot));
 
-            LOGGER.info("Finished batch indexing of {} document(s)", preprocessed.size());
+            LOGGER.info("Finished batch indexing of {} document(s)", analyzed.size());
         }
     } // BatchPipelineIndexer
 

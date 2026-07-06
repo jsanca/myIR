@@ -31,6 +31,14 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+### Agents
+.claude/
+.continue/
+.opencode
+
+### Idea ###
+.idea/
+
 ### VS Code ###
 .vscode/
 

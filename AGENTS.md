@@ -6,16 +6,17 @@
 - **All tests:** `mvn test`
 - **Single test in a module:** `mvn test -pl codex-ir-core -Dtest=codex.ir.ranking.RankersTest` (use `-pl <module>` to avoid scanning all modules; fully-qualified class name avoids ambiguity)
 - **Full verification:** `mvn compile && mvn test-compile && mvn test`
-- **Requires Java 25.** Maven is pinned to source=25 target=25 in `pom.xml`. No other JDK version will work.
-- **Playwright prerequisite:** `npx playwright install` must be run once before any crawler test that touches `WebPageFetcher`. Without browser binaries, the Playwright dependency will fail at runtime.
+- **Requires Java 25.** Maven is pinned to `source=25 target=25` in `pom.xml`. No other JDK version works.
+- **Playwright prerequisite:** `npx playwright install` must be run once before any test touching `WebPageFetcher`. Without browser binaries, Playwright-dependent tests fail at runtime.
 - **No Maven wrapper.** Install Maven directly (any recent version).
 
 ## Running the application
 
 | Entry point | Command |
 |---|---|
-| `codex.Main` (in-memory indexing + search demos) | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.Main"` |
-| `codex.QuickDiscoveryRunner` | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.QuickDiscoveryRunner"` |
+| `codex.scraper.Main` (in-memory indexing + search demos) | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.scraper.Main"` |
+| `codex.scraper.DiscoveryRunner` (product discovery) | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.scraper.DiscoveryRunner"` |
+| `codex.scraper.QuickDiscoveryRunner` (IDE wrapper with embedded args) | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.scraper.QuickDiscoveryRunner"` |
 | `codex.apps.siteexporter.SiteExporterCommand` | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.apps.siteexporter.SiteExporterCommand" -Dexec.args="--url https://example.com/"` |
 
 For full SiteExporter parameter reference, see `README.md`.
@@ -28,21 +29,22 @@ Three Maven modules, each with its own `module-info.java` (JPMS):
 |---|---|---|
 | `codex-ir-core` | `codex.ir.core` | Core IR engine — indexing, search, ranking, vectors |
 | `codex-ir-web` | `codex.ir.web` | Web crawling, ingestion, canonicalization, product extraction |
-| `codex-ir-app` | `codex.ir.app` | Application entry points (`codex.Main`, `codex.apps.siteexporter.SiteExporterCommand`) |
+| `codex-ir-app` | `codex.ir.app` | Application entry points (`codex.scraper.Main`, `codex.apps.siteexporter.SiteExporterCommand`) |
 
-Dependency direction: `app → web → core`. The `module-info.java` files are the authoritative source for exported vs. internal packages. Internal packages under `codex.ir.web` (`ingestion/crawler/fetcher/`, `ingestion/crawler/internal/*`, `web/util/`) are inaccessible to `app`.
+Dependency direction: `app → web → core`. The `module-info.java` files are the authoritative source for exported vs. internal packages. In `codex.ir.core`, `codex.ir.util` is not exported. In `codex.ir.web`, internal packages (`ingestion/crawler/fetcher/`, `ingestion/crawler/internal/*`, `web/util/`) are inaccessible to `app`. Every other `codex.ir.*` package under core and web is exported.
 
-**Core packages (`codex.ir.*`):** `corpus/`, `corpus/vector/`, `indexer/`, `normalizer/`, `tokenizer/`, `ranking/`, `search/`, `vector/`, `vector/store/`, `weight/`, `concurrent/`, `util/` (internal — not JPMS-exported).
+### JPMS quirk for Jackson
 
-**Web exported packages (`codex.ir.*`):** `canonicalizer/`, `ingestion/`, `ingestion/crawler/`, `ingestion/crawler/classifier/`, `ingestion/crawler/filter/`, `ingestion/crawler/metadata/`, `ingestion/crawler/product/`.
+`codex-ir-app/src/main/java/module-info.java` opens `codex.apps.siteexporter` to `com.fasterxml.jackson.databind` so Jackson can access private Builder constructors via reflection. If you add a new Jackson-involved record+Builder to the site exporter, update the `opens` directive.
 
 ## Architecture
 
-- **Interface + Factory pattern.** Every domain concept: `Xxx` interface + `Xxxes` static factory class. Implementations are package-private inner classes of the factory. Callers use the interface type exclusively. Core examples: `Corpus`/`Corpora`, `Indexer`/`Indexers`, `Ranker`/`Rankers`, `Searcher`/`Searchers`, `Normalizer`/`Normalizers`, `Tokenizer`/`Tokenizers`. Web examples: `UriCanonicalizer`/`UriCanonicalizers`, `PageClassifier`/`PageClassifiers`, `ProductDiscoverer`/`ProductDiscoverers`.
+- **Interface + Factory pattern.** Every domain concept: `Xxx` interface + `Xxxes` static factory class. Implementations are package-private inner classes of the factory. Callers use the interface type exclusively. Core examples: `Corpus`/`Corpora`, `Indexer`/`Indexers`, `Ranker`/`Rankers`, `Searcher`/`Searchers`, `Normalizer`/`Normalizers`, `Tokenizer`/`Tokenizers`.
 - **Domain types are Java records.** `Document`, `Posting`, `SearchResult`, `SparseDocumentVector`, `WebPage`, `PageMetadata`, etc. No bare `Map<String,Object>`.
-- **Document field aggregation.** When `Document.fields` is non-empty, the `DocumentPreprocessor` aggregates field values as content to normalize instead of `rawContent`. Falls back to `rawContent` if all field values are blank.
 - **In-memory only (by design).** All core structures (corpus, inverted index, vector store, vocabulary) live in memory. See `docs/ADR-003.md`. Do not introduce persistence without explicit request.
-- **ADRs.** Architectural decisions in `docs/ADR-NNN.md`. Read the relevant ADR before changing the subsystem it covers. Also see `docs/CODING_IDENTITY.md` for design philosophy.
+- **Document field aggregation.** When `Document.fields` is non-empty, the `DocumentPreprocessor` aggregates field values as content instead of using `rawContent`. Falls back to `rawContent` if all field values are blank. Field names are discarded after preprocessing — the current model is whole-document only (see `docs/adrs/ADR-004.md`).
+- **ADRs.** Architectural decisions in `docs/adrs/`. Read the relevant ADR before changing the subsystem it covers.
+- **Design philosophy.** See `docs/CODING_IDENTITY.md`.
 
 ## Coding conventions
 
@@ -52,24 +54,23 @@ Dependency direction: `app → web → core`. The `module-info.java` files are t
 - **If a task is documentation-only, make ZERO code changes.**
 - Public methods should be ≤20 lines, documented with JavaDoc, and validate nulls with `Objects.requireNonNull`.
 - Tests mirror source package structure and use descriptive names (e.g. `bm25RankerShouldPenalizeLongerDocumentWhenTermFrequencyMatches`).
-- Concurrency tests use `CountDownLatch`, `CopyOnWriteArrayList`, `AtomicInteger` manually.
+- Concurrency tests use `CountDownLatch`, `CopyOnWriteArrayList`, `AtomicInteger` manually — no concurrency frameworks.
 - Concurrency: prefer Virtual Threads and Structured Concurrency; use `ScopedValue` over `ThreadLocal`.
 
 ## Record + Builder pattern
 
-When a record needs incremental construction or copy-with-modifications, add a `Builder` inner class. Key rules:
-- Compact constructor: `Objects.requireNonNull` on all params, `List.copyOf`/`Map.copyOf` for mutable fields
-- `Optional` fields use raw type in builder (null = absent); `build()` wraps with `Optional.ofNullable`
-- `toBuilder()` uses `ifPresent` to copy Optional fields
-- `empty()` static factory returns the all-absent/empty-collection instance
-- Do not add `equals`/`hashCode`/`toString`/accessors — records provide them
+When a record needs incremental construction, add a `Builder` inner class. Key rules:
+- Compact constructor: null-check reference params with `Objects.requireNonNull`; use `List.copyOf`/`Map.copyOf` for mutable collection fields.
+- Builder fields for nullable record values use the raw type (e.g. `Integer length`, not `Optional<Integer>`); `null` signals absent.
+- If a copy-constructor pattern is needed, accept the source record in the Builder constructor (see `Document.Builder(Document)`).
+- Factory `empty()` returns an instance with all-absent/null fields (see `DocumentMetadata.empty()`, `CorpusStatistics.empty()`).
+- Do not add `equals`/`hashCode`/`toString`/accessors — records provide them.
 
 ## Architecture Discipline
 
-Application-specific code must not leak into reusable modules:
 - `codex-ir-core` must remain domain-agnostic (no web concepts).
 - `codex-ir-web` may contain reusable crawling, fetching, robots, sitemap, URI, and web traversal primitives.
-- Concrete applications (site exporter, SYJ scraping) live under `codex-ir-app`.
+- Concrete applications (site exporter, scraper demos) live under `codex-ir-app`.
 - New dependencies such as PDF or ePub renderers must be placed behind ports/interfaces.
 
 ## Resources
@@ -79,11 +80,10 @@ Application-specific code must not leak into reusable modules:
 - `Normalizers.StopWordNormalizer` resolves stop-word files via `IR_STOPWORDS_PATH` env var, then `classpath:` or `file:` prefix, falling back to `/stopwords.txt`
 - HTML fixture files for web tests: `codex-ir-web/src/test/resources/fixtures/`
 - Every package has a `package-info.java` describing its purpose — read before adding types to a new package.
+- Deep work: consult `docs/knowledge/index.md` for the CKF knowledge bundle (phase plans, ADRs, reviews, engineering logs).
 
-## Project conventions
+## Reports and generated output
 
-- **No CI, no pre-commit, no Makefile** — nothing to look for or satisfy.
-- **`reports/`** contains generated JSON crawl outputs — do not edit.
-- **`docs/apps/site-exporter/ENGINEERING_LOG.md`** — engineering history for the site exporter application. Read before modifying the site exporter.
-- **`docs/tasks/`** — task specifications and test cases for major features.
-- **`module-info.java`** (in `codex-ir-app`) opens `codex.apps.siteexporter` to `com.fasterxml.jackson.databind` for Jackson reflection on Builder constructors.
+- `reports/` contains generated JSON crawl outputs — do not edit.
+- `docs/apps/site-exporter/ENGINEERING_LOG.md` — read before modifying the site exporter.
+- `docs/tasks/` — task specifications and test cases for major features.

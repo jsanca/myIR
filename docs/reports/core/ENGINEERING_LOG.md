@@ -185,4 +185,187 @@ Tests run: 154, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS
 - Extend `batchLexicalAndVector` with a parallel preprocessing option using virtual threads once field-aware features stabilize
 
 ### Next Step
-IR-1: Introduce `PreprocessedDocument` carrying `List<String> tokens` to eliminate the repeated tokenize→join→split cycle across the pipeline.
+IR-1: Introduce `PreprocessedDocument` carrying `List<String> tokens` to eliminate the repeated tokenize→join→split cycle across the pipeline (now implemented — see Task 3 below).
+
+---
+
+## Task 3 — IR-1: PreprocessedDocument Token Artifact
+
+### Summary
+Introduced `PreprocessedDocument` as an analysis artifact that carries the enriched `Document` alongside the ordered `List<String> tokens` produced during preprocessing. The token list is threaded through the internal indexing pipeline, eliminating two redundant tokenization cycles that previously occurred after preprocessing: one in `LexicalIndexer` (which re-split `normalizedContent`) and one in `Weighters` (which re-tokenized `normalizedContent` to compute term frequencies).
+
+### Scope
+**Included:**
+- New `PreprocessedDocument` record in `codex.ir.indexer`
+- `DocumentPreprocessor.preprocess()` now returns `PreprocessedDocument`
+- `PipelineDocumentResolver` interface removed; replaced by `PreprocessedDocumentConsumer`
+- `PipelineIndexer.index()` dispatches `PreprocessedDocument` to consumers and `Document` to legacy stages
+- `LexicalIndexer` implements `PreprocessedDocumentConsumer` — uses token list directly for positional posting insertion; retains `index(Document)` fallback for standalone callers
+- `VectorIndexer` drops `PipelineDocumentResolver`; its `resolveDocument` no-op removed
+- `Weighters.TermFrequencyDocumentWeighter` and `TfIdfDocumentWeighter` use `metadata().termFrequencies()` when available, falling back to re-tokenization only for query documents
+- `BatchPipelineIndexer.indexAll()` uses `List<PreprocessedDocument>` internally
+- `package-info.java` updated
+- `PreprocessedDocumentTest` with 11 tests
+
+**Excluded:**
+- Per-field token lists (deferred to IR-2)
+- Changes to public `DocumentWeighter` interface
+- Changes to `VectorSearcher.preprocessQuery()` — query documents have no cached term frequencies; weighter fallback path handles them correctly
+
+### Deliverables
+- `codex/ir/indexer/PreprocessedDocument.java` (new public record)
+- `PreprocessedDocumentTest.java` (11 tests)
+
+### Changed Files
+| File | Change |
+|---|---|
+| `indexer/PreprocessedDocument.java` | Created |
+| `indexer/Indexers.java` | `DocumentPreprocessor` → `PreprocessedDocument`; replaced `PipelineDocumentResolver` with `PreprocessedDocumentConsumer`; `LexicalIndexer` implements consumer; `VectorIndexer` drops resolver; `BatchPipelineIndexer` uses `List<PreprocessedDocument>` |
+| `weight/Weighters.java` | Both weighters check `metadata().termFrequencies()` before tokenizing |
+| `indexer/package-info.java` | Documents `PreprocessedDocument` |
+| `test/PreprocessedDocumentTest.java` | Created (11 tests) |
+
+### Validation
+```
+mvn test -pl codex-ir-core
+Tests run: 165, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS
+```
+
+### Tests
+| Test | Purpose |
+|---|---|
+| `tokensShouldBeConsistentWithNormalizedContent` | Stored normalizedContent matches token sequence |
+| `metadataTermFrequenciesShouldReflectTokenCounts` | Repeated tokens produce correct TF in metadata |
+| `documentLengthShouldEqualTokenCount` | `metadata.length()` equals token count |
+| `lexicalIndexShouldContainCorrectPositionalPostings` | Positions are correct (0-based from token list) |
+| `tfIdfWeighterShouldUseMetadataTermFrequenciesWhenAvailable` | TF-IDF uses cached frequencies, not re-tokenization |
+| `termFrequencyWeighterShouldUseMetadataTermFrequenciesWhenAvailable` | TF weighter uses cached frequencies |
+| `lexicalSearchShouldFindDocumentsAfterIR1Changes` | End-to-end lexical search still works |
+| `vectorSearchShouldFindDocumentsAfterIR1Changes` | End-to-end vector search still works |
+| `fieldsAggregationShouldWorkWithTokenArtifact` | Field content tokens are searchable |
+| `documentsWithoutFieldsShouldUseRawContentForTokens` | rawContent fallback still works |
+| `stopWordsShouldBeExcludedFromTokens` | Stop words excluded from metadata termFrequencies |
+
+### Engineering Notes
+- `PreprocessedDocument` is a pipeline-internal artifact: it is produced by `DocumentPreprocessor`, flows through `PipelineIndexer`, and is consumed by `LexicalIndexer`. It is not stored in the corpus or the index. The corpus stores the enriched `Document` (with normalizedContent and metadata), not the `PreprocessedDocument`.
+- `LexicalIndexer` now has two `index` overloads: `index(PreprocessedDocument)` (preferred, no split) and `index(Document)` (fallback, splits normalizedContent). The pipeline always calls the former; standalone callers hit the latter. Both paths produce identical postings.
+- `Weighters` retain the tokenizer-based fallback path unchanged. `VectorSearcher.preprocessQuery()` builds a `Document` with no metadata termFrequencies, so it naturally hits the fallback and re-tokenizes the query string — this is correct behavior.
+- `PipelineDocumentResolver` is gone. It was used only by `VectorIndexer` to return the document unchanged (a no-op). `PreprocessedDocumentConsumer` is the clean replacement; stages that don't implement it simply receive `preprocessed.document()`.
+
+### Decisions
+- `PreprocessedDocument` is public (not package-private) to enable IR-2 field-token work to build on it without copying.
+- The `id()` convenience delegate on `PreprocessedDocument` keeps logging calls readable without `preprocessed.document().id()`.
+- `Weighters` check the cached frequencies before tokenizing rather than requiring callers to pass the token list explicitly — this avoids changing the public `DocumentWeighter` interface.
+
+### Tradeoffs
+- The `LexicalIndexer.index(Document)` fallback keeps backward compatibility for any caller that bypasses `PipelineIndexer`. The cost is two code paths for what is effectively the same logic. Removing the fallback would be cleaner but would break external indexers that call `LexicalIndexer` directly (which shouldn't happen since it's private, but `BatchPipelineIndexer.indexAll` does call it via the `PreprocessedDocumentConsumer` path).
+- `isAlreadyPreprocessed` guard in `DocumentPreprocessor` now splits `normalizedContent` on whitespace to reconstruct a token list. This is a one-time cost for pre-preprocessed documents and only occurs in the "already preprocessed" branch, which is rare.
+
+### Risks
+- **Weighter cache invalidation:** If a caller mutates a `Document`'s `metadata().termFrequencies()` after preprocessing (not possible since the map is immutable via `Map.copyOf`), the weighter would produce stale results. The immutability guarantee eliminates this risk.
+- **Weighter fallback correctness:** The fallback in `TfIdfDocumentWeighter.resolveTermFrequencies` uses `tokenizer.tokenize()` only — it does not normalize. For the query path in `VectorSearcher`, `preprocessQuery()` already normalizes tokens before building the `Document`, so `normalizedContent` contains only normalized terms and the tokenizer split is sufficient.
+
+### Known Limitations
+- `PreprocessedDocument.tokens()` is the whole-document aggregate of normalized terms. Per-field token lists are not yet preserved — that is IR-2.
+- The `isAlreadyPreprocessed` path reconstructs tokens from `normalizedContent.split("\\s+")` rather than the original token list. This is correct but loses the exact tokenizer semantics for edge cases with multiple consecutive spaces (which `join(" ", tokens)` would not produce anyway).
+
+### Follow-ups
+- IR-2: Add `fieldTokens: Map<String, List<String>>` to `PreprocessedDocument` for field provenance
+- IR-3: Field-aware postings using field tokens from `PreprocessedDocument`
+
+### Next Step
+IR-2: Extend `PreprocessedDocument` with per-field token lists so that field provenance is not lost at the preprocessing boundary.
+
+---
+
+## Task 4 — IR-2: Field Provenance Artifact
+
+### Summary
+Introduced `FieldTokenSequence` and `FieldAnalyzedDocument` as analysis artifacts that carry per-field token sequences alongside the whole-document `PreprocessedDocument`. `DocumentPreprocessor.preprocess()` now returns `FieldAnalyzedDocument` instead of `PreprocessedDocument`. The whole-document model (normalizedContent, termFrequencies, document length, postings) is completely unchanged. Per-field tokens are preserved purely for downstream field-aware features; no ranking or search behavior was altered.
+
+### Scope
+**Included:**
+- New `FieldTokenSequence(String fieldName, List<String> tokens)` public record
+- New `FieldAnalyzedDocument(PreprocessedDocument base, List<FieldTokenSequence> fieldSequences)` public record with `hasFieldSequences()`, `id()`, `document()`, `tokens()` delegates
+- `DocumentPreprocessor.preprocess()` return type promoted from `PreprocessedDocument` to `FieldAnalyzedDocument`
+- `analyzeFields(Document)` helper: iterates non-blank field entries, normalizes each independently, produces `List<FieldTokenSequence>`
+- `normalizeTokens(String text)` helper extracted from preprocessing loop
+- `FieldAnalyzedDocumentConsumer` private pipeline interface (highest priority in dispatch)
+- `PipelineIndexer.index()` three-level dispatch: `FieldAnalyzedDocumentConsumer` → `PreprocessedDocumentConsumer` → `Document`
+- `BatchPipelineIndexer.indexAll()` updated to use `List<FieldAnalyzedDocument>`
+- `package-info.java` updated
+- `FieldAnalyzedDocumentTest` with 12 tests
+
+**Excluded:**
+- Field-aware postings (postings still carry no field tag — deferred to IR-3)
+- Field-weight boosting in rankers — deferred to IR-4
+- Changes to `InvertedIndex`, `Corpus`, or `DocumentMetadata` — whole-document model unchanged
+
+### Deliverables
+- `codex/ir/indexer/FieldTokenSequence.java` (new public record)
+- `codex/ir/indexer/FieldAnalyzedDocument.java` (new public record)
+- `FieldAnalyzedDocumentTest.java` (12 tests)
+
+### Changed Files
+| File | Change |
+|---|---|
+| `indexer/FieldTokenSequence.java` | Created |
+| `indexer/FieldAnalyzedDocument.java` | Created |
+| `indexer/Indexers.java` | `DocumentPreprocessor.preprocess()` returns `FieldAnalyzedDocument`; `analyzeFields()` + `normalizeTokens()` helpers added; `FieldAnalyzedDocumentConsumer` interface added; `PipelineIndexer` three-level dispatch; `BatchPipelineIndexer.indexAll()` uses `List<FieldAnalyzedDocument>` |
+| `indexer/package-info.java` | Documents `FieldAnalyzedDocument` and `FieldTokenSequence` |
+| `test/FieldAnalyzedDocumentTest.java` | Created (12 tests) |
+
+### Validation
+```
+mvn test -pl codex-ir-core
+Tests run: 177, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS
+```
+
+### Tests
+| Test | Purpose |
+|---|---|
+| `fieldDocumentShouldProduceOneSequencePerNonBlankField` | Two non-blank fields → both produce tokens in whole-document content |
+| `blankFieldShouldProduceNoFieldSequence` | Blank title → no blank-title contribution to termFrequencies |
+| `rawContentDocumentShouldProduceNoFieldSequences` | rawContent-only document still indexes normally |
+| `allBlankFieldsShouldFallBackToRawContent` | All-blank fields → rawContent fallback produces correct normalizedContent |
+| `wholeDocumentTermFrequenciesMustBeUnchangedByFieldAnalysis` | "java" in both fields → whole-document TF=2; field analysis does not alter this |
+| `documentLengthMustReflectWholeDocumentTokenCount` | Four tokens across two fields → `metadata.length()=4` |
+| `stopWordsExcludedFromWholeDocumentTokensShouldNotAppearInFieldFrequencies` | "the" / "a" excluded from whole-document TF |
+| `lexicalSearchBehaviorMustBeUnchangedAfterIR2` | Field-indexed docs found by term; relative ranking unchanged |
+| `rawContentDocumentShouldBeSearchableAfterIR2` | rawContent docs still searchable |
+| `mixedCorpusWithFieldAndRawContentDocumentsShouldSearchCorrectlyAfterIR2` | Mixed corpus: both field-doc and raw-doc findable by distinct terms |
+| `fieldAnalyzedDocumentShouldReportHasFieldSequencesCorrectly` | `hasFieldSequences()` true/false; `fieldSequences()` size and names correct |
+| `fieldTokenSequenceTokensShouldBeImmutable` | `FieldTokenSequence.tokens()` returns correct immutable list |
+
+### Engineering Notes
+- `FieldAnalyzedDocument` wraps `PreprocessedDocument` as `base` rather than extending it. This keeps both records flat and avoids inheritance. Delegates (`id()`, `document()`, `tokens()`) are one-liners that forward to `base`.
+- `analyzeFields()` and `normalizeTokens()` are private static helpers inside `DocumentPreprocessor` (a private inner class of `Indexers`). They are not visible outside the factory, keeping the public API unchanged.
+- The `rawContent` fallback path in `DocumentPreprocessor.preprocess()` produces an empty `fieldSequences` list. `analyzeFields()` is only called when at least one field is non-blank; when all fields are blank, `resolveContent()` has already fallen back to `rawContent` and `analyzeFields()` returns `List.of()`.
+- `FieldAnalyzedDocumentConsumer` is currently implemented by no stage — it is the reserved extension point for IR-3 field-aware posting insertion. No pipeline changes will be needed in IR-3 to wire it in.
+- `PipelineIndexer` dispatch order: `FieldAnalyzedDocumentConsumer` checked first (instanceof), then `PreprocessedDocumentConsumer` (LexicalIndexer), then raw `Document` (VectorIndexer). The three-level hierarchy adds zero overhead for the common case where only `LexicalIndexer` and `VectorIndexer` are present.
+- `BatchPipelineIndexer.indexAll()` was updated: `List<PreprocessedDocument>` → `List<FieldAnalyzedDocument>`; `lexicalIndexer.index(fa.base())` passes the `PreprocessedDocument` to the `PreprocessedDocumentConsumer` path; vectorization still uses `fa.document()` (unchanged).
+
+### Decisions
+- `FieldAnalyzedDocument` is a record wrapping `PreprocessedDocument`, not a modified `PreprocessedDocument` with an added field. This avoids touching the IR-1 artifact and keeps each slice's type independent.
+- Per-field tokens use the same normalizer as the whole-document path so that field tokens are consistent with whole-document postings — no double normalization occurs because each field value is normalized once.
+- `FieldTokenSequence` is a public record (not package-private) to allow future IR-3+ consumers outside the pipeline to inspect field sequences without reflection.
+
+### Tradeoffs
+- Field sequences are computed eagerly during `preprocess()` even when no downstream stage consumes them (current state — no `FieldAnalyzedDocumentConsumer` exists yet). The cost is one `tokenize()` + `normalize()` call per non-blank field. This is acceptable; lazy evaluation would require a supplier and add complexity not yet justified.
+- An alternative was to extend `PreprocessedDocument` directly (add `Map<String, List<String>> fieldTokens`). Rejected: it would reopen the IR-1 artifact, add nullability concerns, and mix two conceptually distinct slices in one type.
+
+### Risks
+- **Field tokenizer consistency:** `analyzeFields()` uses the same `tokenizer` and `normalizer` instances as the whole-document path. If a future caller constructs a pipeline with field-specific normalizers, this assumption breaks. There is no provision for per-field normalization at this layer — that would require IR-5+ work.
+- **Empty fieldSequences for rawContent docs:** Callers checking `hasFieldSequences()` cannot distinguish "rawContent document" from "all-blank-fields document." Both return `false`. If this distinction matters later, a separate flag or an enum `ContentSource` would be needed.
+
+### Known Limitations
+- Field sequences are analysis artifacts only — they are not stored in the corpus or the inverted index. Postings have no field tag yet (deferred to IR-3).
+- `FieldAnalyzedDocument` is not included in the JPMS `module-info.java` exports review — it is already in the `codex.ir.indexer` package which is exported; no change needed.
+
+### Follow-ups
+- IR-3: Field-aware posting insertion — add a `fieldName` tag to `Posting` and have `LexicalIndexer` implement `FieldAnalyzedDocumentConsumer` to insert per-field postings
+- IR-4: Field-weight boosting — use per-field postings in `Rankers.bm25`/`tfIdf` with configurable field boost multipliers
+- Consider whether `analyzeFields()` should skip fields whose names appear in a configured "excluded fields" set (e.g., internal metadata fields)
+
+### Next Step
+IR-3: Field-aware posting insertion — tag postings with their source field so the ranker can apply field-specific boost multipliers.

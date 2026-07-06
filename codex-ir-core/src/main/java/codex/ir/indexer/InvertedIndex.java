@@ -28,6 +28,21 @@ public interface InvertedIndex {
     void add(final String term, final String documentId, final int position);
 
     /**
+     * Records a field-scoped occurrence of a term in a document.
+     *
+     * <p>This is called in addition to {@link #add} for structured-field documents and
+     * enriches the posting's {@link Posting#fieldFrequencies()} map without changing the
+     * whole-document {@link Posting#termFrequency()} or positions accumulated by {@link #add}.
+     * For raw-content documents, this method is never called and the corresponding postings
+     * will have an empty {@code fieldFrequencies} map.</p>
+     *
+     * @param term normalized term
+     * @param documentId identifier of the document containing the term
+     * @param fieldName the field from which this occurrence originates
+     */
+    void addFieldOccurrence(String term, String documentId, String fieldName);
+
+    /**
      * Returns the postings list associated with a term.
      *
      * Each posting represents one document where the term appears,

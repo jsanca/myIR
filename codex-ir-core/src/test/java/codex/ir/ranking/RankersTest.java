@@ -11,6 +11,7 @@ import codex.ir.tokenizer.Tokenizers;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -20,7 +21,7 @@ class RankersTest {
     @Test
     void binaryRankerShouldReturnOneWhenPostingExists() {
         final Ranker ranker = Rankers.binary();
-        final Posting posting = new Posting("doc-1", 3, List.of(1, 4, 7));
+        final Posting posting = new Posting("doc-1", 3, List.of(1, 4, 7), Map.of());
 
         final double score = ranker.score("java", posting);
 
@@ -39,7 +40,7 @@ class RankersTest {
     @Test
     void binaryRankerShouldReturnZeroWhenTermIsBlank() {
         final Ranker ranker = Rankers.binary();
-        final Posting posting = new Posting("doc-1", 1, List.of(2));
+        final Posting posting = new Posting("doc-1", 1, List.of(2), Map.of());
 
         final double score = ranker.score("   ", posting);
 

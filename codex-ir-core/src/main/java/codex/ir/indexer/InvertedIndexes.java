@@ -43,6 +43,20 @@ public final class InvertedIndexes {
         }
 
         @Override
+        public void addFieldOccurrence(final String term, final String documentId, final String fieldName) {
+            if (term == null || term.isBlank()
+                    || documentId == null || documentId.isBlank()
+                    || fieldName == null || fieldName.isBlank()) {
+                return;
+            }
+
+            final Posting.Accumulator accumulator = termAccumulatorMap.get(term);
+            if (accumulator != null) {
+                accumulator.addFieldOccurrence(documentId, fieldName);
+            }
+        }
+
+        @Override
         public List<Posting> getPostings(final String term) {
             if (term == null || term.isBlank()) {
                 return List.of();

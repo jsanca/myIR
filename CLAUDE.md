@@ -135,7 +135,7 @@ All core structures (corpus, inverted index, vector store, vocabulary) are in-me
 
 ## ADRs
 
-Architectural decisions are captured in `docs/ADR-NNN.md`. Read the relevant ADR before changing the subsystem it covers. Also see `docs/CODING_IDENTITY.md` for design philosophy.
+Architectural decisions are captured in `docs/adrs/ADR-NNN.md`. Read the relevant ADR before changing the subsystem it covers. Also see `docs/CODING_IDENTITY.md` for design philosophy.
 
 ## Coding conventions
 
@@ -169,7 +169,24 @@ Architectural decisions are captured in `docs/ADR-NNN.md`. Read the relevant ADR
 - HTML fixture files for web tests: `codex-ir-web/src/test/resources/fixtures/`
 - Every package has a `package-info.java` describing its purpose — read it before adding types to a new package.
 
-## Project conventions
+## Documentation Discipline
+
+`docs/knowledge/` is a Codex Knowledge Format (CKF) bundle — the authoritative store for durable architectural knowledge. Its layout:
+
+| Path | Content type |
+|---|---|
+| `docs/knowledge/index.md` | Entry point index — read this before architectural or phase work |
+| `docs/knowledge/decisions/` | Architecture Decisions (ADR-style, supersedes `docs/adrs/` for new decisions) |
+| `docs/knowledge/phases/` | Delivery Phase specs (goal, scope, validation criteria) |
+| `docs/knowledge/logs/` | Engineering Log Entries (one file per completed phase) |
+| `docs/knowledge/reviews/` | Deep Reviews — readiness and baseline assessments |
+
+- CKF concepts are canonical. Do not maintain duplicate copies elsewhere.
+- When a phase completes: create or update the corresponding CKF Engineering Log Entry under `docs/knowledge/logs/`.
+- For `codex-ir-core` tasks not under an active CKF phase, append to `docs/reports/core/ENGINEERING_LOG.md` using the template in the Reporting section below.
+- Link ADRs, reviews, phases, and logs together using relative Markdown links; keep `docs/knowledge/index.md` navigable.
+- Keep task prompts under `docs/tasks/`; transient briefs do not belong in the CKF bundle.
+- Add or update `package-info.java` when code introduces or materially changes a package-level concept.
 
 - **No CI, no pre-commit, no Makefile** — nothing to satisfy before committing.
 - **`reports/`** contains generated JSON crawl outputs — do not edit.
@@ -231,12 +248,15 @@ Key rules:
 
 ## Reporting
 
-After each task, the agent must produce a structured engineering report. The report must be added to the appropriate `ENGINEERING_LOG.md` when the task belongs to a specific app or subsystem.
+After each task, produce a structured engineering report. Use the appropriate log:
 
-| Subsystem | Log file |
+| Subsystem | Log |
 |---|---|
-| Core IR engine (`codex-ir-core` tasks) | `docs/reports/core/ENGINEERING_LOG.md` |
+| Core IR engine task inside a CKF phase | CKF Engineering Log Entry under `docs/knowledge/logs/core/` |
+| Core IR engine task not under a CKF phase | `docs/reports/core/ENGINEERING_LOG.md` |
 | Site exporter app | `docs/apps/site-exporter/ENGINEERING_LOG.md` |
+
+CKF Engineering Log Entries use the CKF frontmatter format (`type: Engineering Log Entry`, `ckf_status: completed`, etc.) and free-form Markdown — see `docs/knowledge/logs/core/ir-1-preprocessed-document.md` as a reference. The flat `ENGINEERING_LOG.md` format uses the template below.
 
 Each task report must include the following sections:
 

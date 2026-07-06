@@ -81,13 +81,19 @@ public final class Weighters {
             Objects.requireNonNull(snapshot, "snapshot must not be null");
             Objects.requireNonNull(document, "document must not be null");
 
+            final Map<String, Integer> cached = document.metadata().termFrequencies();
+            if (cached != null && !cached.isEmpty()) {
+                final Map<String, Double> result = new HashMap<>(cached.size());
+                cached.forEach((term, count) -> result.put(term, (double) count));
+                return Map.copyOf(result);
+            }
+
             final String normalizedContent = document.normalizedContent();
             if (normalizedContent == null || normalizedContent.isBlank()) {
                 return Map.of();
             }
 
             final Map<String, Double> termWeights = new HashMap<>();
-
             for (final String token : tokenizer.tokenize(normalizedContent)) {
                 if (token == null || token.isBlank()) {
                     continue;
@@ -120,20 +126,7 @@ public final class Weighters {
             Objects.requireNonNull(snapshot, "snapshot must not be null");
             Objects.requireNonNull(document, "document must not be null");
 
-            final String normalizedContent = document.normalizedContent();
-            if (normalizedContent == null || normalizedContent.isBlank()) {
-                return Map.of();
-            }
-
-            final Map<String, Integer> termFrequencies = new HashMap<>();
-
-            for (final String token : tokenizer.tokenize(normalizedContent)) {
-                if (token == null || token.isBlank()) {
-                    continue;
-                }
-                termFrequencies.merge(token, 1, Integer::sum);
-            }
-
+            final Map<String, Integer> termFrequencies = resolveTermFrequencies(document);
             if (termFrequencies.isEmpty()) {
                 return Map.of();
             }
@@ -163,6 +156,27 @@ public final class Weighters {
             }
 
             return Map.copyOf(termWeights);
+        }
+
+        private Map<String, Integer> resolveTermFrequencies(final Document document) {
+            final Map<String, Integer> cached = document.metadata().termFrequencies();
+            if (cached != null && !cached.isEmpty()) {
+                return cached;
+            }
+
+            final String normalizedContent = document.normalizedContent();
+            if (normalizedContent == null || normalizedContent.isBlank()) {
+                return Map.of();
+            }
+
+            final Map<String, Integer> computed = new HashMap<>();
+            for (final String token : tokenizer.tokenize(normalizedContent)) {
+                if (token == null || token.isBlank()) {
+                    continue;
+                }
+                computed.merge(token, 1, Integer::sum);
+            }
+            return computed;
         }
     }
 }
