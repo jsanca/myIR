@@ -85,5 +85,20 @@ When a record needs incremental construction, add a `Builder` inner class. Key r
 ## Reports and generated output
 
 - `reports/` contains generated JSON crawl outputs — do not edit.
-- `docs/apps/site-exporter/ENGINEERING_LOG.md` — read before modifying the site exporter.
+- `docs/knowledge/logs/` is the canonical location for engineering evidence;
+  create one CKF Engineering Log Entry per completed phase or coherent task.
+- `docs/reports/core/ENGINEERING_LOG.md` and
+  `docs/apps/site-exporter/ENGINEERING_LOG.md` are historical link indexes only.
+  Do not append canonical content to them.
 - `docs/tasks/` — task specifications and test cases for major features.
+
+<!-- OSK:BEGIN -->
+
+## OSK Workspace
+
+Read:
+
+- `docs/PROJECT.md`
+- `docs/OSK.md`
+
+<!-- OSK:END -->

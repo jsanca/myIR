@@ -2,7 +2,7 @@ package codex.ir.ranking;
 
 import codex.ir.indexer.Posting;
 
-import java.util.Collection;
+import java.util.Map;
 
 /**
  * Abstraction for ranking strategies used during information retrieval.
@@ -70,4 +70,45 @@ public interface Ranker {
      */
     double score(final String term, final Posting posting);
 
+    /**
+     * Computes the field-boosted score for a term-document pair.
+     *
+     * <p>Applies a frequency-weighted boost factor derived from
+     * {@link Posting#fieldFrequencies()} and {@link RankingContext#fieldWeights()}:
+     *
+     * <pre>
+     * boostFactor = Σ(fieldFreq[f] × weight[f]) / Σ(fieldFreq[f])
+     * boostedScore = score(term, posting) × boostFactor
+     * </pre>
+     *
+     * <p>The boost factor collapses to {@code 1.0} — and scores are therefore identical
+     * to {@link #score(String, Posting)} — in either of these cases:
+     * <ul>
+     *   <li>The posting has no field frequency data (raw-content document).</li>
+     *   <li>The context is {@link RankingContext#neutral()} (no explicit field weights).</li>
+     * </ul>
+     *
+     * @param term normalized query term
+     * @param posting posting for the term in a candidate document
+     * @param context per-request ranking configuration carrying field weights
+     * @return field-boosted score contribution
+     */
+    default double score(final String term, final Posting posting, final RankingContext context) {
+        final double base = score(term, posting);
+        if (base == 0.0) {
+            return 0.0;
+        }
+        final Map<String, Integer> fieldFreqs = posting.fieldFrequencies();
+        if (fieldFreqs.isEmpty() || context.fieldWeights().isNeutral()) {
+            return base;
+        }
+        double weightedSum = 0.0;
+        int totalFreq = 0;
+        for (final Map.Entry<String, Integer> entry : fieldFreqs.entrySet()) {
+            final int freq = entry.getValue();
+            weightedSum += freq * context.fieldWeights().weightFor(entry.getKey());
+            totalFreq += freq;
+        }
+        return totalFreq > 0 ? base * (weightedSum / totalFreq) : base;
+    }
 }

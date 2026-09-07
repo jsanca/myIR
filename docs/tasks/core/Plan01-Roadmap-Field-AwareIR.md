@@ -1,5 +1,11 @@
 # myIR Roadmap — Field-Aware Retrieval Foundation
 
+> **Historical delivery plan — reconciled 2026-09-04.** IR-0 through IR-4
+> below are complete. This plan is retained as execution history; use the
+> [current roadmap](../../roadmap/ROADMAP.md) for present sequence and the
+> [candidate map](../../knowledge/research/candidate-capabilities.md) for
+> non-committed directions. IR-5 and IR-6 remain unselected candidates.
+
 ## Goal
 
 Prepare myIR for field-aware indexing/ranking without breaking the current whole-document aggregation model.
@@ -188,25 +194,86 @@ Index tokens with field provenance.
 * Search without boosts preserves compatibility
 
 ---
-
 # IR-4 — Field-Aware Ranking / Boosting
 
 ## Goal
 
-Apply simple per-field boosts.
+Use `Posting.fieldFrequencies()` to apply configurable field boosts during ranking, without changing postings again.
 
-## Deliverables
+## Required design
 
-* `FieldWeights`
-* Ranking with per-field weights
-* Neutral defaults
-* Configurable title boost
+Introduce:
+
+```java
+RankingContext
+FieldWeights
+````
+
+Suggested shape:
+
+```java
+record FieldWeights(Map<String, Double> weights) {
+    static FieldWeights neutral()
+    double weightFor(String fieldName)
+}
+
+record RankingContext(FieldWeights fieldWeights) {
+    static RankingContext neutral()
+}
+```
+
+## Required behavior
+
+* Default ranking remains unchanged.
+* If no field weights are provided, scores must match current scores.
+* If a term appears in boosted fields, score increases proportionally.
+* Raw-content documents with empty `fieldFrequencies` must behave exactly as before.
+* Do not add any new fields to `Posting`.
+
+## Integration
+
+* Add ranker overload/default method:
+
+```java
+score(String term, Posting posting, RankingContext context)
+```
+
+* Existing `score(term, posting)` delegates to neutral context or remains equivalent.
+* `SimpleSearcher` can optionally accept `RankingContext`.
+* Existing search factories use neutral context by default.
+* Add factory overloads for field-aware ranking/search.
+
+## Constraints
+
+Do not implement BM25F yet.
+
+Do not add:
+
+* field positions
+* field statistics
+* score explanations
+* query syntax
+* changes to vector search
 
 ## Validation
 
-* A title match can outscore a body-only match
-* Without weights, ranking is identical to before
-* Minimal explanation of the applied boost
+Add tests:
+
+* neutral context gives identical scores to old ranking
+* title boost can make title match rank above body-only match
+* unknown field uses weight 1.0
+* empty fieldFrequencies behaves like whole-document ranking
+* TF-IDF field boost works
+* BM25 field boost works, if BM25 ranker shares the same path
+* existing tests remain green
+
+## Documentation
+
+* Add CKF engineering log for IR-4
+* Update docs/knowledge/index.md
+* Update package-info.java if ranking package semantics change
+
+
 
 ---
 

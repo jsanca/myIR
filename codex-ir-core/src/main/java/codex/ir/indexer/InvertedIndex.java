@@ -36,11 +36,15 @@ public interface InvertedIndex {
      * For raw-content documents, this method is never called and the corresponding postings
      * will have an empty {@code fieldFrequencies} map.</p>
      *
+     * <p>Implementations that do not support field-level frequency tracking may retain this
+     * default no-op. The default is safe because callers treat {@code fieldFrequencies} as
+     * optional enrichment data, not as part of the core retrieval contract.</p>
+     *
      * @param term normalized term
      * @param documentId identifier of the document containing the term
      * @param fieldName the field from which this occurrence originates
      */
-    void addFieldOccurrence(String term, String documentId, String fieldName);
+    default void addFieldOccurrence(String term, String documentId, String fieldName) {}
 
     /**
      * Returns the postings list associated with a term.

@@ -1,0 +1,1844 @@
+{
+  "pageResults" : [ {
+    "pageUri" : "https://syjleathers.com/tienda/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/tienda/",
+      "type" : "CATEGORY",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/tienda/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productCards" : [ {
+      "url" : "https://syjleathers.com/tienda/#categories",
+      "name" : "Categorías"
+    }, {
+      "url" : "https://syjleathers.com/tienda/",
+      "name" : "Todos"
+    }, {
+      "url" : "https://syjleathers.com/categoria-producto/cuidados-del-cuero/",
+      "name" : "Cuidados del Cuero"
+    }, {
+      "url" : "https://syjleathers.com/categoria-producto/temporada/",
+      "name" : "TEMPORADA"
+    }, {
+      "url" : "https://syjleathers.com/categoria-producto/corporativo/",
+      "name" : "CORPORATIVO"
+    }, {
+      "url" : "https://syjleathers.com/categoria-producto/ellos/",
+      "name" : "ELLOS"
+    }, {
+      "url" : "https://syjleathers.com/categoria-producto/ellas/",
+      "name" : "ELLAS"
+    } ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/menu-bocas-tablilla/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/menu-bocas-tablilla/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/menu-bocas-tablilla/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/menu-bocas-tablilla/",
+      "name" : "Menú Bocas - Tablilla - S y J Leathers",
+      "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/menu--bocas-tablita1-web.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ]
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/menu-troquel-vinos/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/menu-troquel-vinos/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/menu-troquel-vinos/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/menu-troquel-vinos/",
+      "name" : "Menú Troquel Vinos",
+      "sku" : "Botella Vino pqña/Cortada en laser",
+      "shortDescription" : "Cotice su menú con nosotros para conocer el precio exacto según la cantidad requerida.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/men---de-vinos-troquel-negro.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/menu-filo/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/menu-filo/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/menu-filo/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/menu-filo/",
+      "name" : "Menú Filo",
+      "sku" : "2799",
+      "shortDescription" : "Cotice su menú con nosotros para conocer el precio exacto según la cantidad requerida.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/menu-filo-negro-3_web.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/menu-postres/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/menu-postres/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/menu-postres/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/menu-postres/",
+      "name" : "Menú Postres",
+      "sku" : "2807",
+      "shortDescription" : "Cotice su menú con nosotros para conocer el precio exacto según la cantidad requerida.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/menu-postres-salmon-web.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/menu-troquel-pez/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/menu-troquel-pez/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/menu-troquel-pez/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/menu-troquel-pez/",
+      "name" : "Menú Troquel Pez",
+      "sku" : "2765",
+      "shortDescription" : "Cotice su menú con nosotros para conocer el precio exacto según la cantidad requerida.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/men---pez-turquesa.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/menu-corcho/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/menu-corcho/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/menu-corcho/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/menu-corcho/",
+      "name" : "Menú Corcho",
+      "sku" : "2755",
+      "shortDescription" : "Cotice su menú con nosotros para conocer el precio exacto según la cantidad requerida.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/men---el-castillo-del-vino.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/menu-laser-01/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/menu-laser-01/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/menu-laser-01/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/menu-laser-01/",
+      "name" : "Menú Láser-01",
+      "sku" : "ML-01",
+      "shortDescription" : "Cotice su menú con nosotros para conocer el precio exacto según la cantidad requerida.\r\n\r\n*Costo indicado sin laser",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/men---esejota-celeste.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/menu-laser-02/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/menu-laser-02/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/menu-laser-02/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/menu-laser-02/",
+      "name" : "Menú Láser-02",
+      "sku" : "ML-02",
+      "shortDescription" : "Cotice su menú con nosotros para conocer el precio exacto según la cantidad requerida.\r\n\r\n*Costo indicado sin láser.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/men---verde.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/menu-triptico/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/menu-triptico/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/menu-triptico/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/menu-triptico/",
+      "name" : "Menú Tríptico",
+      "sku" : "2758",
+      "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/men---bbq-miel.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/menu-ventolero/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/menu-ventolero/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/menu-ventolero/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/menu-ventolero/",
+      "name" : "Menú Ventolero",
+      "sku" : "2802",
+      "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/menu-el-ventolero-cerrado-web.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/menu-terruno/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/menu-terruno/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/menu-terruno/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/menu-terruno/",
+      "name" : "Menú Terruño",
+      "sku" : "2817",
+      "shortDescription" : "Cotice su menú con nosotros para conocer el precio exacto según la cantidad requerida.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/menu-terruno-cerrado.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/porta-vasos-03/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/porta-vasos-03/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/porta-vasos-03/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/porta-vasos-03/",
+      "name" : "Porta Vasos-03",
+      "sku" : "2841",
+      "shortDescription" : "Cotice con nosotros para conocer el precio exacto según la cantidad requerida.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/portavasos-3.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/porta-vasos-04/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/porta-vasos-04/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/porta-vasos-04/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/porta-vasos-04/",
+      "name" : "Porta Vasos-04",
+      "sku" : "2846",
+      "shortDescription" : "Cotice con nosotros para conocer el precio exacto según la cantidad requerida.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/portavasos-4.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/porta-vasos-01/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/porta-vasos-01/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/porta-vasos-01/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/porta-vasos-01/",
+      "name" : "Porta Vasos-01",
+      "sku" : "2834",
+      "shortDescription" : "Cotice con nosotros para conocer el precio exacto según la cantidad requerida.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/portavasos-1.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/porta-vasos-02/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/porta-vasos-02/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/porta-vasos-02/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/porta-vasos-02/",
+      "name" : "Porta Vasos-02",
+      "sku" : "2836",
+      "shortDescription" : "Cotice con nosotros para conocer el precio exacto según la cantidad requerida.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/portavasos-2.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/menu-sj/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/menu-sj/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/menu-sj/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/menu-sj/",
+      "name" : "Menú S&amp;amp;J",
+      "sku" : "2810",
+      "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/menu-s-j-cerrado-web.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "InStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/menu-triptico-02/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/menu-triptico-02/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/menu-triptico-02/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/menu-triptico-02/",
+      "name" : "Menú Triptico-02",
+      "sku" : "menú-tríptico-02",
+      "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/menu-casona-cafetal-cerrada_web.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "InStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/menu-sushi-tablilla/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/menu-sushi-tablilla/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/menu-sushi-tablilla/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/menu-sushi-tablilla/",
+      "name" : "Menú Sushi - Tablilla",
+      "sku" : "2814",
+      "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/menu-sushi-1.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "InStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/porta-block-08/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/porta-block-08/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/porta-block-08/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/porta-block-08/",
+      "name" : "Porta Block-08",
+      "sku" : "PB-08",
+      "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/pb-08-cerada.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/esponja-gde/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/esponja-gde/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/esponja-gde/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/esponja-gde/",
+      "name" : "ESPONJA GDE",
+      "sku" : "ESPONJA GDE",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2021/09/SYJ_PRODUCT-71_WEB.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/zh-28501/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/zh-28501/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/zh-28501/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/zh-28501/",
+      "name" : "ZH-28501",
+      "sku" : "ZH-28501",
+      "shortDescription" : "Seleccione el color y la talla para agregar el producto al carrito de compras",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2022/01/SyJ_ENERO-34_WEB.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/porta-cuentas/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/porta-cuentas/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/porta-cuentas/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/porta-cuentas/",
+      "name" : "Porta Cuentas",
+      "sku" : "portacuentas",
+      "shortDescription" : "Cotice con nosotros para conocer el precio exacto según la cantidad requerida.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/portacuenta-caf---2.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "InStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/menu-vinos/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/menu-vinos/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/menu-vinos/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/menu-vinos/",
+      "name" : "Menú Vinos",
+      "sku" : "2829",
+      "shortDescription" : "IVA incluido.\r\n\r\nCotice su menú con nosotros para conocer el precio exacto según la cantidad requerida. Rango de precio varía según el material utilizado para la fabricación.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/men---de-vinos-beige.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "InStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/f-v85/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/f-v85/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/f-v85/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/f-v85/",
+      "name" : "F-V85",
+      "sku" : "F-V87",
+      "shortDescription" : "Seleccione el color y la talla para agregar el producto al carrito de compras.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2022/01/SyJ_ENERO-86_WEB.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/bh-04-ap/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/bh-04-ap/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/bh-04-ap/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/bh-04-ap/",
+      "name" : "Billetera Hombre BH-04",
+      "sku" : "BH-04-1",
+      "shortDescription" : "Cotiza tu artículo promocional con nosotros para conocer el precio exacto según la cantidad requerida. Contáctanos al 2591-1310 o a ventas@syjleathers.com\r\n\r\n\r\nSi deseas agregar este producto al carrito de compras podés hacerlo desde la categoría Corporativo &amp;gt; Ejecutivo",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/bh-04-cerrada8.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/porta-block-05/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/porta-block-05/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/porta-block-05/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/porta-block-05/",
+      "name" : "Porta Block-05 AP",
+      "sku" : "PB-05-CO",
+      "shortDescription" : "Cotiza tu artículo promocional con nosotros para conocer el precio exacto según la cantidad requerida. Contáctanos al 2591-1310 o a ventas@syjleathers.com\r\n\r\n\r\nSi deseas agregar este producto al carrito de compras podés hacerlo desde la categoría Corporativo &amp;gt; Ejecutivo",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/pb-05-cerrado.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/porta-block-01-ap/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/porta-block-01-ap/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/porta-block-01-ap/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/porta-block-01-ap/",
+      "name" : "Porta Block-01 AP",
+      "sku" : "PB-01-1",
+      "shortDescription" : "Cotice su artículo promocional con nosotros para conocer el precio exacto según la cantidad requerida. Contáctenos al 2591-1310\r\n\r\n\r\nSi desea agregar este producto al carrito de compras puede hacerlo desde la categoría Corporativo &amp;gt; Ejecutivo",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/pb-01-frontal.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/porta-block-01/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/porta-block-01/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/porta-block-01/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/porta-block-01/",
+      "name" : "Porta Block-01",
+      "sku" : "PB-01",
+      "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/pb-01-frontal.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/crema-de-zapatos-negro/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/crema-de-zapatos-negro/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/crema-de-zapatos-negro/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/crema-de-zapatos-negro/",
+      "name" : "CREMA NEGRA",
+      "sku" : "Shoe cream-NB",
+      "shortDescription" : "Crema de zapatos limpiadora e hidratante color negro. A diferencia del betún convencional, esta crema NO contiene petróleo, de forma que va a conservar mejor el estado y la apariencia del cuero de tus zapatos. Aplicalo sobre la superficie de tu calzado y observa los resultados.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2023/01/BETÚN-2.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/crema-de-zapatos-cafe/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/crema-de-zapatos-cafe/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/crema-de-zapatos-cafe/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/crema-de-zapatos-cafe/",
+      "name" : "CREMA CAFE",
+      "sku" : "17825",
+      "shortDescription" : "Crema de zapatos limpiadora e hidratante color café. A diferencia del betún convencional, la crema NO contiene petróleo, de forma que va a conservar mejor el estado y la apariencia del cuero de tus zapatos. Aplicalo sobre la superficie de tu calzado y observa los resultados.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2023/01/BETÚN-VERDE.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "InStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/cepillo/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/cepillo/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/cepillo/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/cepillo/",
+      "name" : "CEPILLO",
+      "sku" : "CEPILLO",
+      "shortDescription" : "Cepillo para limpiar y mantener en buen estado cueros tipo nobuck",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2020/09/IMG_7712.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/bm-02-ap/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/bm-02-ap/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/bm-02-ap/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/bm-02-ap/",
+      "name" : "Billetera Mujer BM-02",
+      "sku" : "BM-02-1",
+      "shortDescription" : "Cotice su artículo promocional con nosotros para conocer el precio exacto según la cantidad requerida. Contáctenos al 2591-1310\r\n\r\n\r\nSi desea agregar este producto al carrito de compras puede hacerlo desde la categoría Ellas &amp;gt; Accesorios &amp;gt; Billeteras",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/bm-02-roja-web1.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "InStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/llaver-esejota/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/llaver-esejota/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/llaver-esejota/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/llaver-esejota/",
+      "name" : "Llavero esejota",
+      "sku" : "LLH-ESEJOTA",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2021/06/llavero-essejota-01-scaled.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/zh-6316/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/zh-6316/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/zh-6316/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/zh-6316/",
+      "name" : "ZH-6316",
+      "sku" : "ZH-6316",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2024/05/ZH-6316-CO-CA.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/zapatos-tipo-mocasin/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/zapatos-tipo-mocasin/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/zapatos-tipo-mocasin/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/zapatos-tipo-mocasin/",
+      "name" : "ZH-3483",
+      "sku" : "ZH-3483",
+      "shortDescription" : "Selecciona el color y talla para poder agregar el producto al carrito de compras.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2021/02/SyJ_WEB-8.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/porta-block-06/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/porta-block-06/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/porta-block-06/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/porta-block-06/",
+      "name" : "Porta Block-06",
+      "sku" : "PB-06",
+      "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/pb-06-frontal.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/porta-block-05-2/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/porta-block-05-2/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/porta-block-05-2/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/porta-block-05-2/",
+      "name" : "Porta Block-05",
+      "sku" : "PB-05-CO-1",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/pb-05-cerrado.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/f-19-09/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/f-19-09/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/f-19-09/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/f-19-09/",
+      "name" : "F-19-09",
+      "sku" : "F-19-09-CO",
+      "shortDescription" : "Selecciona el color y talla para poder agregar la faja al carrito de compras y realizar su compra en línea.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2020/12/SyJ-Product-5-scaled.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/crema-hidratante/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/crema-hidratante/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/crema-hidratante/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/crema-hidratante/",
+      "name" : "Crema hidratante",
+      "sku" : "CREMA",
+      "shortDescription" : "Crema hidratante para cueros lisos.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2020/09/IMG_1366-1-scaled.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "InStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/limpiador-en-seco/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/limpiador-en-seco/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/limpiador-en-seco/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/limpiador-en-seco/",
+      "name" : "LIMPIADOR EN SECO",
+      "sku" : "LIMPIADOR-SECO",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2024/11/Limpiador-en-seco-scaled.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "InStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/impermeabilizante/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/impermeabilizante/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/impermeabilizante/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/impermeabilizante/",
+      "name" : "Impermeabilizante",
+      "sku" : "IMP-SYJ",
+      "shortDescription" : "Con este producto crearás una capa de protección en el cuero que no permitirá que se humedezca.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2024/11/Impermeabilizante-scaled.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "InStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/f-19-06/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/f-19-06/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/f-19-06/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/f-19-06/",
+      "name" : "F-19-06",
+      "sku" : "F-19-06",
+      "shortDescription" : "Seleccione el color y la talla para agregar el producto al carrito de compras.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2022/04/SyJ_PRODUCT-3_WEB.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/f-18-05/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/f-18-05/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/f-18-05/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/f-18-05/",
+      "name" : "F-18-05",
+      "sku" : "F-18-05-CO",
+      "shortDescription" : "Selecciona el color y talla para poder agregar el producto al carrito de compras.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2020/12/SyJ-Product-7-scaled.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/both-301/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/both-301/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/both-301/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/both-301/",
+      "name" : "BOTH-301",
+      "sku" : "BOTH-301",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2023/12/mayo-2023-36-1-scaled.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/bm-02-colores-ap/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/bm-02-colores-ap/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/bm-02-colores-ap/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/bm-02-colores-ap/",
+      "name" : "Billetera Mujer BM-02-Colores",
+      "sku" : "BM-02-Colores-1",
+      "shortDescription" : "Cotice su artículo promocional con nosotros para conocer el precio exacto según la cantidad requerida. Contáctenos al 2591-1310\r\n\r\n\r\nSi desea agregar este producto al carrito de compras puede hacerlo desde la categoría Ellas &amp;gt; Accesorios &amp;gt; Billeteras",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/bm-02-colores-web.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "InStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/f-38-2/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/f-38-2/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/f-38-2/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/f-38-2/",
+      "name" : "F-38",
+      "sku" : "15783",
+      "shortDescription" : "Seleccione el color y la talla para agregar el producto al carrito de compras.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2022/01/SyJ_ENERO-84_WEB.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/porta-block-12-carta/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/porta-block-12-carta/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/porta-block-12-carta/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/porta-block-12-carta/",
+      "name" : "Porta Block 1/2 Carta",
+      "sku" : "PB-1/2 C",
+      "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/pb-1-2-c.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/bm-ana/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/bm-ana/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/bm-ana/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/bm-ana/",
+      "name" : "BM ANA",
+      "sku" : "BM-ANA",
+      "shortDescription" : "Material Externo: Cuero\r\nMaterial Interno: Tela\r\nDimensiones:\r\nBase: 22 cm / Altura 14 cm / Grosor: 1,5 cm",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2023/12/BM-ANA-CAFE-1.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/bm-season/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/bm-season/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/bm-season/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/bm-season/",
+      "name" : "BM-SEASON",
+      "sku" : "BM-SEASON",
+      "shortDescription" : "Seleccione el color para agregar el producto al carrito de compras.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2022/05/SYJ_PRODUCT-219_WEB.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  }, {
+    "pageUri" : "https://syjleathers.com/producto/billetera-bm-fiona/",
+    "pageClassification" : {
+      "uri" : "https://syjleathers.com/producto/billetera-bm-fiona/",
+      "type" : "PRODUCT",
+      "urlClassification" : {
+        "uri" : "https://syjleathers.com/producto/billetera-bm-fiona/",
+        "type" : "PRODUCT"
+      },
+      "wordpressDetected" : false,
+      "wooCommerceDetected" : false
+    },
+    "productDetail" : {
+      "url" : "https://syjleathers.com/producto/billetera-bm-fiona/",
+      "name" : "Billetera BM-Fiona",
+      "sku" : "BM-FIONA",
+      "shortDescription" : "Selecciona el color para poder agregar el producto al carrito de compras.",
+      "images" : [ {
+        "url" : "https://syjleathers.com/wp-content/uploads/2018/02/BM-FIONA-ROJA-cerrada-WEB.jpg",
+        "altText" : "",
+        "displayOrder" : 0
+      } ],
+      "availability" : "OutOfStock"
+    },
+    "productCards" : [ ]
+  } ],
+  "productDetails" : [ {
+    "url" : "https://syjleathers.com/producto/menu-bocas-tablilla/",
+    "name" : "Menú Bocas - Tablilla - S y J Leathers",
+    "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/menu--bocas-tablita1-web.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ]
+  }, {
+    "url" : "https://syjleathers.com/producto/menu-troquel-vinos/",
+    "name" : "Menú Troquel Vinos",
+    "sku" : "Botella Vino pqña/Cortada en laser",
+    "shortDescription" : "Cotice su menú con nosotros para conocer el precio exacto según la cantidad requerida.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/men---de-vinos-troquel-negro.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/menu-filo/",
+    "name" : "Menú Filo",
+    "sku" : "2799",
+    "shortDescription" : "Cotice su menú con nosotros para conocer el precio exacto según la cantidad requerida.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/menu-filo-negro-3_web.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/menu-postres/",
+    "name" : "Menú Postres",
+    "sku" : "2807",
+    "shortDescription" : "Cotice su menú con nosotros para conocer el precio exacto según la cantidad requerida.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/menu-postres-salmon-web.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/menu-troquel-pez/",
+    "name" : "Menú Troquel Pez",
+    "sku" : "2765",
+    "shortDescription" : "Cotice su menú con nosotros para conocer el precio exacto según la cantidad requerida.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/men---pez-turquesa.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/menu-corcho/",
+    "name" : "Menú Corcho",
+    "sku" : "2755",
+    "shortDescription" : "Cotice su menú con nosotros para conocer el precio exacto según la cantidad requerida.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/men---el-castillo-del-vino.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/menu-laser-01/",
+    "name" : "Menú Láser-01",
+    "sku" : "ML-01",
+    "shortDescription" : "Cotice su menú con nosotros para conocer el precio exacto según la cantidad requerida.\r\n\r\n*Costo indicado sin laser",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/men---esejota-celeste.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/menu-laser-02/",
+    "name" : "Menú Láser-02",
+    "sku" : "ML-02",
+    "shortDescription" : "Cotice su menú con nosotros para conocer el precio exacto según la cantidad requerida.\r\n\r\n*Costo indicado sin láser.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/men---verde.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/menu-triptico/",
+    "name" : "Menú Tríptico",
+    "sku" : "2758",
+    "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/men---bbq-miel.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/menu-ventolero/",
+    "name" : "Menú Ventolero",
+    "sku" : "2802",
+    "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/menu-el-ventolero-cerrado-web.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/menu-terruno/",
+    "name" : "Menú Terruño",
+    "sku" : "2817",
+    "shortDescription" : "Cotice su menú con nosotros para conocer el precio exacto según la cantidad requerida.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/menu-terruno-cerrado.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/porta-vasos-03/",
+    "name" : "Porta Vasos-03",
+    "sku" : "2841",
+    "shortDescription" : "Cotice con nosotros para conocer el precio exacto según la cantidad requerida.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/portavasos-3.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/porta-vasos-04/",
+    "name" : "Porta Vasos-04",
+    "sku" : "2846",
+    "shortDescription" : "Cotice con nosotros para conocer el precio exacto según la cantidad requerida.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/portavasos-4.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/porta-vasos-01/",
+    "name" : "Porta Vasos-01",
+    "sku" : "2834",
+    "shortDescription" : "Cotice con nosotros para conocer el precio exacto según la cantidad requerida.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/portavasos-1.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/porta-vasos-02/",
+    "name" : "Porta Vasos-02",
+    "sku" : "2836",
+    "shortDescription" : "Cotice con nosotros para conocer el precio exacto según la cantidad requerida.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/portavasos-2.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/menu-sj/",
+    "name" : "Menú S&amp;amp;J",
+    "sku" : "2810",
+    "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/menu-s-j-cerrado-web.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "InStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/menu-triptico-02/",
+    "name" : "Menú Triptico-02",
+    "sku" : "menú-tríptico-02",
+    "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/menu-casona-cafetal-cerrada_web.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "InStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/menu-sushi-tablilla/",
+    "name" : "Menú Sushi - Tablilla",
+    "sku" : "2814",
+    "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/menu-sushi-1.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "InStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/porta-block-08/",
+    "name" : "Porta Block-08",
+    "sku" : "PB-08",
+    "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/pb-08-cerada.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/esponja-gde/",
+    "name" : "ESPONJA GDE",
+    "sku" : "ESPONJA GDE",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2021/09/SYJ_PRODUCT-71_WEB.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/zh-28501/",
+    "name" : "ZH-28501",
+    "sku" : "ZH-28501",
+    "shortDescription" : "Seleccione el color y la talla para agregar el producto al carrito de compras",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2022/01/SyJ_ENERO-34_WEB.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/porta-cuentas/",
+    "name" : "Porta Cuentas",
+    "sku" : "portacuentas",
+    "shortDescription" : "Cotice con nosotros para conocer el precio exacto según la cantidad requerida.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/portacuenta-caf---2.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "InStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/menu-vinos/",
+    "name" : "Menú Vinos",
+    "sku" : "2829",
+    "shortDescription" : "IVA incluido.\r\n\r\nCotice su menú con nosotros para conocer el precio exacto según la cantidad requerida. Rango de precio varía según el material utilizado para la fabricación.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/men---de-vinos-beige.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "InStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/f-v85/",
+    "name" : "F-V85",
+    "sku" : "F-V87",
+    "shortDescription" : "Seleccione el color y la talla para agregar el producto al carrito de compras.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2022/01/SyJ_ENERO-86_WEB.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/bh-04-ap/",
+    "name" : "Billetera Hombre BH-04",
+    "sku" : "BH-04-1",
+    "shortDescription" : "Cotiza tu artículo promocional con nosotros para conocer el precio exacto según la cantidad requerida. Contáctanos al 2591-1310 o a ventas@syjleathers.com\r\n\r\n\r\nSi deseas agregar este producto al carrito de compras podés hacerlo desde la categoría Corporativo &amp;gt; Ejecutivo",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/bh-04-cerrada8.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/porta-block-05/",
+    "name" : "Porta Block-05 AP",
+    "sku" : "PB-05-CO",
+    "shortDescription" : "Cotiza tu artículo promocional con nosotros para conocer el precio exacto según la cantidad requerida. Contáctanos al 2591-1310 o a ventas@syjleathers.com\r\n\r\n\r\nSi deseas agregar este producto al carrito de compras podés hacerlo desde la categoría Corporativo &amp;gt; Ejecutivo",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/pb-05-cerrado.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/porta-block-01-ap/",
+    "name" : "Porta Block-01 AP",
+    "sku" : "PB-01-1",
+    "shortDescription" : "Cotice su artículo promocional con nosotros para conocer el precio exacto según la cantidad requerida. Contáctenos al 2591-1310\r\n\r\n\r\nSi desea agregar este producto al carrito de compras puede hacerlo desde la categoría Corporativo &amp;gt; Ejecutivo",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/pb-01-frontal.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/porta-block-01/",
+    "name" : "Porta Block-01",
+    "sku" : "PB-01",
+    "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/pb-01-frontal.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/crema-de-zapatos-negro/",
+    "name" : "CREMA NEGRA",
+    "sku" : "Shoe cream-NB",
+    "shortDescription" : "Crema de zapatos limpiadora e hidratante color negro. A diferencia del betún convencional, esta crema NO contiene petróleo, de forma que va a conservar mejor el estado y la apariencia del cuero de tus zapatos. Aplicalo sobre la superficie de tu calzado y observa los resultados.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2023/01/BETÚN-2.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/crema-de-zapatos-cafe/",
+    "name" : "CREMA CAFE",
+    "sku" : "17825",
+    "shortDescription" : "Crema de zapatos limpiadora e hidratante color café. A diferencia del betún convencional, la crema NO contiene petróleo, de forma que va a conservar mejor el estado y la apariencia del cuero de tus zapatos. Aplicalo sobre la superficie de tu calzado y observa los resultados.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2023/01/BETÚN-VERDE.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "InStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/cepillo/",
+    "name" : "CEPILLO",
+    "sku" : "CEPILLO",
+    "shortDescription" : "Cepillo para limpiar y mantener en buen estado cueros tipo nobuck",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2020/09/IMG_7712.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/bm-02-ap/",
+    "name" : "Billetera Mujer BM-02",
+    "sku" : "BM-02-1",
+    "shortDescription" : "Cotice su artículo promocional con nosotros para conocer el precio exacto según la cantidad requerida. Contáctenos al 2591-1310\r\n\r\n\r\nSi desea agregar este producto al carrito de compras puede hacerlo desde la categoría Ellas &amp;gt; Accesorios &amp;gt; Billeteras",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/bm-02-roja-web1.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "InStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/llaver-esejota/",
+    "name" : "Llavero esejota",
+    "sku" : "LLH-ESEJOTA",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2021/06/llavero-essejota-01-scaled.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/zh-6316/",
+    "name" : "ZH-6316",
+    "sku" : "ZH-6316",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2024/05/ZH-6316-CO-CA.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/zapatos-tipo-mocasin/",
+    "name" : "ZH-3483",
+    "sku" : "ZH-3483",
+    "shortDescription" : "Selecciona el color y talla para poder agregar el producto al carrito de compras.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2021/02/SyJ_WEB-8.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/porta-block-06/",
+    "name" : "Porta Block-06",
+    "sku" : "PB-06",
+    "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/pb-06-frontal.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/porta-block-05-2/",
+    "name" : "Porta Block-05",
+    "sku" : "PB-05-CO-1",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/pb-05-cerrado.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/f-19-09/",
+    "name" : "F-19-09",
+    "sku" : "F-19-09-CO",
+    "shortDescription" : "Selecciona el color y talla para poder agregar la faja al carrito de compras y realizar su compra en línea.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2020/12/SyJ-Product-5-scaled.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/crema-hidratante/",
+    "name" : "Crema hidratante",
+    "sku" : "CREMA",
+    "shortDescription" : "Crema hidratante para cueros lisos.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2020/09/IMG_1366-1-scaled.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "InStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/limpiador-en-seco/",
+    "name" : "LIMPIADOR EN SECO",
+    "sku" : "LIMPIADOR-SECO",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2024/11/Limpiador-en-seco-scaled.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "InStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/impermeabilizante/",
+    "name" : "Impermeabilizante",
+    "sku" : "IMP-SYJ",
+    "shortDescription" : "Con este producto crearás una capa de protección en el cuero que no permitirá que se humedezca.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2024/11/Impermeabilizante-scaled.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "InStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/f-19-06/",
+    "name" : "F-19-06",
+    "sku" : "F-19-06",
+    "shortDescription" : "Seleccione el color y la talla para agregar el producto al carrito de compras.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2022/04/SyJ_PRODUCT-3_WEB.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/f-18-05/",
+    "name" : "F-18-05",
+    "sku" : "F-18-05-CO",
+    "shortDescription" : "Selecciona el color y talla para poder agregar el producto al carrito de compras.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2020/12/SyJ-Product-7-scaled.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/both-301/",
+    "name" : "BOTH-301",
+    "sku" : "BOTH-301",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2023/12/mayo-2023-36-1-scaled.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/bm-02-colores-ap/",
+    "name" : "Billetera Mujer BM-02-Colores",
+    "sku" : "BM-02-Colores-1",
+    "shortDescription" : "Cotice su artículo promocional con nosotros para conocer el precio exacto según la cantidad requerida. Contáctenos al 2591-1310\r\n\r\n\r\nSi desea agregar este producto al carrito de compras puede hacerlo desde la categoría Ellas &amp;gt; Accesorios &amp;gt; Billeteras",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/bm-02-colores-web.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "InStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/f-38-2/",
+    "name" : "F-38",
+    "sku" : "15783",
+    "shortDescription" : "Seleccione el color y la talla para agregar el producto al carrito de compras.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2022/01/SyJ_ENERO-84_WEB.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/porta-block-12-carta/",
+    "name" : "Porta Block 1/2 Carta",
+    "sku" : "PB-1/2 C",
+    "shortDescription" : "Contáctenos para cotizar según sus necesidades.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/cm/images/stories/virtuemart/product/pb-1-2-c.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/bm-ana/",
+    "name" : "BM ANA",
+    "sku" : "BM-ANA",
+    "shortDescription" : "Material Externo: Cuero\r\nMaterial Interno: Tela\r\nDimensiones:\r\nBase: 22 cm / Altura 14 cm / Grosor: 1,5 cm",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2023/12/BM-ANA-CAFE-1.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/bm-season/",
+    "name" : "BM-SEASON",
+    "sku" : "BM-SEASON",
+    "shortDescription" : "Seleccione el color para agregar el producto al carrito de compras.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2022/05/SYJ_PRODUCT-219_WEB.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  }, {
+    "url" : "https://syjleathers.com/producto/billetera-bm-fiona/",
+    "name" : "Billetera BM-Fiona",
+    "sku" : "BM-FIONA",
+    "shortDescription" : "Selecciona el color para poder agregar el producto al carrito de compras.",
+    "images" : [ {
+      "url" : "https://syjleathers.com/wp-content/uploads/2018/02/BM-FIONA-ROJA-cerrada-WEB.jpg",
+      "altText" : "",
+      "displayOrder" : 0
+    } ],
+    "availability" : "OutOfStock"
+  } ],
+  "productCards" : [ {
+    "url" : "https://syjleathers.com/tienda/#categories",
+    "name" : "Categorías"
+  }, {
+    "url" : "https://syjleathers.com/tienda/",
+    "name" : "Todos"
+  }, {
+    "url" : "https://syjleathers.com/categoria-producto/cuidados-del-cuero/",
+    "name" : "Cuidados del Cuero"
+  }, {
+    "url" : "https://syjleathers.com/categoria-producto/temporada/",
+    "name" : "TEMPORADA"
+  }, {
+    "url" : "https://syjleathers.com/categoria-producto/corporativo/",
+    "name" : "CORPORATIVO"
+  }, {
+    "url" : "https://syjleathers.com/categoria-producto/ellos/",
+    "name" : "ELLOS"
+  }, {
+    "url" : "https://syjleathers.com/categoria-producto/ellas/",
+    "name" : "ELLAS"
+  } ]
+}

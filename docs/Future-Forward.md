@@ -2,6 +2,16 @@
 
 # Future Forward Features
 
+> **Historical planning record — superseded for current-state claims (2026-09-04).**
+> This document correctly preserves earlier exploration, but its statements that
+> field-aware documents, field weighting, and web crawling are future work are
+> no longer current. IR-0 through IR-4 are complete. Use the
+> [current system knowledge](knowledge/architecture/current-system.md), the
+> [roadmap](roadmap/ROADMAP.md), and the
+> [research candidate map](knowledge/research/candidate-capabilities.md) for
+> present status and future classification. The original text below is retained
+> as historical context rather than rewritten.
+
 This document captures future-oriented capabilities that we intentionally postponed while building the current core of the IR engine. The goal is to preserve the direction of the project without over-engineering too early.
 
 ## Current Context

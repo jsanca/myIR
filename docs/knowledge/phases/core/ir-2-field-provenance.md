@@ -5,7 +5,7 @@ description: Preserve normalized per-field tokens without changing postings, ran
 tags: [core, indexing, preprocessing, fields]
 timestamp: 2026-07-05T00:00:00Z
 ckf_version: "0.1"
-ckf_status: active
+ckf_status: completed
 ckf_scope: core
 ckf_owner: project
 ---

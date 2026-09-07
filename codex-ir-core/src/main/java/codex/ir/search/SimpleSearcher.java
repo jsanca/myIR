@@ -7,6 +7,7 @@ import codex.ir.indexer.Posting;
 import codex.ir.normalizer.Normalizer;
 import codex.ir.tokenizer.Tokenizer;
 import codex.ir.ranking.Ranker;
+import codex.ir.ranking.RankingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,13 +37,10 @@ public class SimpleSearcher implements Searcher {
     private final Tokenizer tokenizer;
     private final Normalizer normalizer;
     private final Ranker ranker;
+    private final RankingContext rankingContext;
 
     /**
-     * Creates a new searcher backed by the given index snapshot, corpus snapshot,
-     * tokenizer, and normalizer.
-     *
-     * <p>Both snapshots must have been taken after the ingestion round is complete so
-     * that the searcher and ranker see a consistent, stable view of the indexed data.</p>
+     * Creates a new searcher with whole-document (non-field-aware) scoring.
      *
      * @param invertedIndex frozen index snapshot used to retrieve matching document ids
      * @param corpus frozen corpus snapshot used to resolve document ids into documents
@@ -55,11 +53,35 @@ public class SimpleSearcher implements Searcher {
                           final Tokenizer tokenizer,
                           final Normalizer normalizer,
                           final Ranker ranker) {
+        this(invertedIndex, corpus, tokenizer, normalizer, ranker, RankingContext.neutral());
+    }
+
+    /**
+     * Creates a new searcher with field-aware scoring.
+     *
+     * <p>When {@code rankingContext} is {@link RankingContext#neutral()} the scores are
+     * identical to the no-context constructor. Pass a context with explicit
+     * {@link codex.ir.ranking.FieldWeights} to boost terms that appear in high-value fields.</p>
+     *
+     * @param invertedIndex frozen index snapshot used to retrieve matching document ids
+     * @param corpus frozen corpus snapshot used to resolve document ids into documents
+     * @param tokenizer tokenizer used to split the incoming query
+     * @param normalizer normalizer used to normalize query tokens
+     * @param ranker ranker used to score and order matched documents
+     * @param rankingContext per-request ranking configuration
+     */
+    public SimpleSearcher(final IndexSnapshot invertedIndex,
+                          final CorpusSnapshot corpus,
+                          final Tokenizer tokenizer,
+                          final Normalizer normalizer,
+                          final Ranker ranker,
+                          final RankingContext rankingContext) {
         this.invertedIndex = Objects.requireNonNull(invertedIndex);
         this.corpus = Objects.requireNonNull(corpus);
         this.tokenizer = Objects.requireNonNull(tokenizer);
         this.normalizer = Objects.requireNonNull(normalizer);
         this.ranker = Objects.requireNonNull(ranker);
+        this.rankingContext = Objects.requireNonNull(rankingContext);
     }
 
     /**
@@ -123,7 +145,7 @@ public class SimpleSearcher implements Searcher {
                         .computeIfAbsent(documentId, ignored -> new LinkedHashSet<>())
                         .add(normalizedTerm);
 
-                final double contribution = this.ranker.score(normalizedTerm, posting);
+                final double contribution = this.ranker.score(normalizedTerm, posting, this.rankingContext);
                 scoreByDocumentIdMap.merge(documentId, contribution, Double::sum);
             }
         }

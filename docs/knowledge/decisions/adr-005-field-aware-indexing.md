@@ -5,15 +5,18 @@ description: Preserve whole-document compatibility while introducing field prove
 tags: [core, indexing, fields, ranking]
 timestamp: 2026-07-05T00:00:00Z
 ckf_version: "0.1"
-ckf_status: proposed
+ckf_status: accepted
 ckf_scope: core
 ckf_owner: project
 ---
 
 # Status
 
-Proposed. Field provenance work is active, but field-aware postings, search,
-and ranking are not implemented.
+Accepted and implemented incrementally through lexical field boosting. IR-2
+preserved provenance, IR-3 added posting field frequencies, and IR-4 added
+query-time lexical weighting. Field-restricted query syntax, per-field
+statistics/BM25F, and field-aware sparse vectors remain open choices rather
+than implied commitments.
 
 # Context
 
@@ -22,8 +25,10 @@ The accepted whole-document contract aggregates non-blank field values before
 indexing. Downstream postings, vectors, rankers, and corpus statistics therefore
 operate on one undifferentiated content stream.
 
-The active [IR-2 phase](../phases/core/ir-2-field-provenance.md) preserves field
-token provenance as an analysis artifact without changing that public behavior.
+The completed [IR-2 phase](../phases/core/ir-2-field-provenance.md) preserves
+field token provenance as an analysis artifact. The completed IR-3 and IR-4
+slices extend lexical postings and ranking without replacing the
+whole-document compatibility path.
 
 # Decision Direction
 
@@ -31,10 +36,10 @@ Do not perform a big-bang conversion to field-aware retrieval. Preserve the
 whole-document path while adding field capabilities in independently testable
 slices:
 
-1. Preserve normalized per-field tokens in preprocessing artifacts.
-2. Introduce field-aware postings only after provenance is stable.
-3. Add neutral field weights before adding ranking boosts.
-4. Consider BM25F only after per-field frequencies and lengths are proven useful.
+1. Preserve normalized per-field tokens in preprocessing artifacts. **Complete.**
+2. Introduce field-aware postings after provenance is stable. **Complete.**
+3. Add neutral field weights before adding ranking boosts. **Complete.**
+4. Consider BM25F only after per-field frequencies and lengths are proven useful. **Open.**
 
 # Options
 
@@ -74,7 +79,7 @@ field-aware index models above.
 
 ## Negative
 
-- Field-specific search and title boosts remain unavailable initially.
+- Field-specific query syntax, field statistics, and BM25F remain unavailable.
 - Compatibility paths temporarily coexist with richer analysis artifacts.
 - A later posting/index decision still affects several core contracts.
 
@@ -83,5 +88,5 @@ field-aware index models above.
 - Depends on the existing whole-document aggregation decision in
   [`ADR-004`](../../adrs/ADR-004.md).
 - Informed by the [Field Model Indexing Readiness Review](../reviews/core/field-model-indexing-readiness.md).
-- Implemented incrementally by [IR-2: Field Provenance](../phases/core/ir-2-field-provenance.md).
+- Implemented incrementally by [IR-2: Field Provenance](../phases/core/ir-2-field-provenance.md), [IR-3](../logs/core/ir-3-field-aware-postings.md), and [IR-4](../logs/core/ir-4-field-aware-ranking.md).
 - Builds on the completed [IR-1 preprocessing artifact](../logs/core/ir-1-preprocessed-document.md).

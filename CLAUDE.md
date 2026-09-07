@@ -16,8 +16,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | Entry point | Command |
 |---|---|
-| `codex.Main` (in-memory indexing + search demos) | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.Main"` |
-| `codex.QuickDiscoveryRunner` | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.QuickDiscoveryRunner"` |
+| `codex.scraper.Main` (in-memory indexing + search demos) | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.scraper.Main"` |
+| `codex.scraper.DiscoveryRunner` (product discovery) | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.scraper.DiscoveryRunner"` |
+| `codex.scraper.QuickDiscoveryRunner` (IDE wrapper with embedded args) | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.scraper.QuickDiscoveryRunner"` |
 | `codex.apps.siteexporter.SiteExporterCommand` | `mvn exec:java -pl codex-ir-app -Dexec.mainClass="codex.apps.siteexporter.SiteExporterCommand" -Dexec.args="--url https://example.com/"` |
 
 ### SiteExporter CLI flags
@@ -135,7 +136,7 @@ All core structures (corpus, inverted index, vector store, vocabulary) are in-me
 
 ## ADRs
 
-Architectural decisions are captured in `docs/adrs/ADR-NNN.md`. Read the relevant ADR before changing the subsystem it covers. Also see `docs/CODING_IDENTITY.md` for design philosophy.
+Existing architectural decisions are in `docs/adrs/ADR-NNN.md`. New decisions go in `docs/adr/` (per OSK). Read the relevant ADR before changing the subsystem it covers. Also see `docs/CODING_IDENTITY.md` for design philosophy.
 
 ## Coding conventions
 
@@ -171,28 +172,21 @@ Architectural decisions are captured in `docs/adrs/ADR-NNN.md`. Read the relevan
 
 ## Documentation Discipline
 
-`docs/knowledge/` is a Codex Knowledge Format (CKF) bundle — the authoritative store for durable architectural knowledge. Its layout:
+The workspace follows the OSK information model — classify by purpose, not by the task that produced it:
 
-| Path | Content type |
-|---|---|
-| `docs/knowledge/index.md` | Entry point index — read this before architectural or phase work |
-| `docs/knowledge/decisions/` | Architecture Decisions (ADR-style, supersedes `docs/adrs/` for new decisions) |
-| `docs/knowledge/phases/` | Delivery Phase specs (goal, scope, validation criteria) |
-| `docs/knowledge/logs/` | Engineering Log Entries (one file per completed phase) |
-| `docs/knowledge/reviews/` | Deep Reviews — readiness and baseline assessments |
+| Concern | Canonical location | What belongs here |
+|---|---|---|
+| Engineering evidence | `docs/engineering/` | Task reports, reviews, checkpoints, reproducible validation. Index at `docs/engineering/ENGINEERING_LOG.md`; details under `docs/engineering/agents/`. |
+| Durable knowledge | `docs/knowledge/` | Current architecture facts, domain concepts, flows. Start at `docs/knowledge/index.md`. |
+| Architecture decisions | `docs/adr/` | New ADRs (context, decision, consequences). Historical ADRs are in `docs/adrs/`. |
+| Roadmap | `docs/roadmap/ROADMAP.md` | Committed direction. Non-committed ideas go under `docs/roadmap/future/`. |
 
-- CKF concepts are canonical. Do not maintain duplicate copies elsewhere.
-- When a phase completes: create or update the corresponding CKF Engineering Log Entry under `docs/knowledge/logs/`.
-- For `codex-ir-core` tasks not under an active CKF phase, append to `docs/reports/core/ENGINEERING_LOG.md` using the template in the Reporting section below.
-- Link ADRs, reviews, phases, and logs together using relative Markdown links; keep `docs/knowledge/index.md` navigable.
-- Keep task prompts under `docs/tasks/`; transient briefs do not belong in the CKF bundle.
+Key rules:
+- Do not duplicate content across areas — link instead.
 - Add or update `package-info.java` when code introduces or materially changes a package-level concept.
-
+- Keep task prompts under `docs/tasks/`; transient briefs do not belong in the knowledge bundle.
 - **No CI, no pre-commit, no Makefile** — nothing to satisfy before committing.
 - **`reports/`** contains generated JSON crawl outputs — do not edit.
-- **`docs/reports/core/ENGINEERING_LOG.md`** — engineering history for the core IR engine. Read before modifying `codex-ir-core`.
-- **`docs/apps/site-exporter/ENGINEERING_LOG.md`** — engineering history for the site exporter. Read before modifying any site exporter code.
-- **`docs/tasks/`** — task specifications and test cases for major features.
 - **`module-info.java` in `codex-ir-app`** opens `codex.apps.siteexporter` to `com.fasterxml.jackson.databind` so Jackson can reflect on Builder constructors — do not remove this `opens` directive.
 
 ## Record + Builder pattern
@@ -248,15 +242,9 @@ Key rules:
 
 ## Reporting
 
-After each task, produce a structured engineering report. Use the appropriate log:
+After each task, produce a structured engineering report under `docs/engineering/agents/` (one file per coherent task or completed phase). Use `docs/knowledge/logs/core/ir-1-preprocessed-document.md` as a reference for the frontmatter format (`type: Engineering Log Entry`, `ckf_status: completed`, etc.). Keep `docs/engineering/ENGINEERING_LOG.md` as the stable compact index — add a one-line entry linking each new report.
 
-| Subsystem | Log |
-|---|---|
-| Core IR engine task inside a CKF phase | CKF Engineering Log Entry under `docs/knowledge/logs/core/` |
-| Core IR engine task not under a CKF phase | `docs/reports/core/ENGINEERING_LOG.md` |
-| Site exporter app | `docs/apps/site-exporter/ENGINEERING_LOG.md` |
-
-CKF Engineering Log Entries use the CKF frontmatter format (`type: Engineering Log Entry`, `ckf_status: completed`, etc.) and free-form Markdown — see `docs/knowledge/logs/core/ir-1-preprocessed-document.md` as a reference. The flat `ENGINEERING_LOG.md` format uses the template below.
+If the task establishes a reusable current fact, also update the relevant `docs/knowledge/` page and link it from the report.
 
 Each task report must include the following sections:
 
@@ -318,3 +306,14 @@ Application-specific code must not leak into reusable core modules.
 - `codex-ir-web` may contain reusable crawling, fetching, robots, sitemap, URI, and web traversal primitives.
 - Concrete applications such as SYJ scraping or site exporting must live under `codex-ir-app`.
 - New dependencies such as PDF or ePub renderers must be placed behind ports/interfaces.
+
+<!-- OSK:BEGIN -->
+
+## OSK Workspace
+
+Read:
+
+- `docs/PROJECT.md`
+- `docs/OSK.md`
+
+<!-- OSK:END -->

@@ -4,6 +4,7 @@ import codex.ir.corpus.CorpusSnapshot;
 import codex.ir.corpus.vector.Vocabulary;
 import codex.ir.indexer.IndexSnapshot;
 import codex.ir.normalizer.Normalizer;
+import codex.ir.ranking.RankingContext;
 import codex.ir.ranking.Ranker;
 import codex.ir.tokenizer.Tokenizer;
 import codex.ir.vector.Similarity;
@@ -25,6 +26,25 @@ public final class Searchers {
                                    final Ranker ranker) {
 
         return new SimpleSearcher(invertedIndex, corpus, tokenizer, normalizer, ranker);
+    }
+
+    /**
+     * Creates a field-aware lexical searcher that applies {@code rankingContext} when
+     * scoring each matching posting.
+     *
+     * <p>Passing {@link RankingContext#neutral()} produces scores identical to the
+     * non-context overload. Pass a context with explicit
+     * {@link codex.ir.ranking.FieldWeights} to boost terms that appear in high-value
+     * fields (e.g. give "title" a weight of 2.0 to rank title matches higher).</p>
+     */
+    public static Searcher lexical(final IndexSnapshot invertedIndex,
+                                   final CorpusSnapshot corpus,
+                                   final Tokenizer tokenizer,
+                                   final Normalizer normalizer,
+                                   final Ranker ranker,
+                                   final RankingContext rankingContext) {
+
+        return new SimpleSearcher(invertedIndex, corpus, tokenizer, normalizer, ranker, rankingContext);
     }
 
     public static Searcher vector(final Tokenizer tokenizer,
