@@ -4,6 +4,7 @@ This file is the compact, current index of material engineering work. Detailed t
 
 | Task | Description | Status | Depends On | Task File | Report | Review | Fix / Checkpoint | Knowledge |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| IR-5.2 Ranker Migration | Ranker.evaluate abstract method; atomic migration of all 3 rankers; TermScorings helper extracted; 14 new tests (T-08–T-21) | Complete | IR-5.1 | — | [report](agents/reports/ir-5-2-ranker-migration.md) | — | — | — |
 | IR-5.1 Domain Model | 6 new types (TermScoring, BinaryTermScoring, TfIdfTermScoring, Bm25TermScoring, FieldBoost, ScoreExplanation); 25 tests; additive only — no ranker/searcher wiring | Complete | IR-5 Execution Plan | — | [report](agents/reports/ir-5-1-domain-model.md) | — | — | — |
 | IR-5 Execution Plan | 6 mandatory slices (IR-5.1–IR-5.AR–IR-5.4–IR-5.R) + conditional remediation paths; QA decision documented; all slices traced to UC/T IDs | Plan active | IR-5 R2, Use Cases | [task](agents/tasks/Task—IR-5:MaterializeImplementationEngineeringPlan.md) | [plan](plans/engineering_plan.md) | — | — | — |
 | IR-5 Use-Case Reconciliation | Formal UC-1…UC-6 spec + 30-test traceability matrix; R2 plan reconciled to remove no-op slice and add UC/Test blocks per slice | Design complete | IR-5 R2 | [task](agents/tasks/Task—IR-5ScoreExplanation:ImplementationUseCasesAndEngineeringPlanReconciliation.md) | [use cases](../knowledge/use-cases/ir-5-score-explanation-use-cases.md) | — | — | — |

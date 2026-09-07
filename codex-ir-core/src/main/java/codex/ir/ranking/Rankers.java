@@ -16,20 +16,20 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Factory and container for {@link Ranker} implementations.
  *
- * This utility class exposes static factory methods used to create
+ * <p>This utility class exposes static factory methods used to create
  * ranking strategies for the retrieval pipeline. It follows the
  * same pattern used elsewhere in the project where concrete
  * implementations are hidden behind simple factory methods.
  *
- * Example usage:
- *
+ * <p>Example usage:
  * <pre>
  * Ranker ranker = Rankers.tfIdf(corpus, invertedIndex);
  * </pre>
  *
- * Additional ranking strategies (e.g. BM25) can be added here
- * without exposing their internal implementation classes.
- * @author jsanca & elo
+ * <p>Each implementation's {@link Ranker#evaluate} method is the single scoring source
+ * of truth. {@link Ranker#score} delegates to it by interface default.
+ *
+ * @author jsanca &amp; elo
  */
 public final class Rankers {
 
@@ -38,29 +38,26 @@ public final class Rankers {
     /**
      * Creates a ranker based on the binary ranking model.
      *
-     * The returned {@link Ranker} implementation only checks whether
+     * <p>The returned {@link Ranker} implementation only checks whether
      * a term is present in a document. If present, the score
      * contribution is {@code 1.0}; otherwise it is {@code 0.0}.
-     *
-     * This ranker is useful as a simple baseline for validating
-     * retrieval behavior before introducing frequency-based or
-     * probabilistic models.
      *
      * @return a ranker implementing binary term presence scoring
      */
     public static Ranker binary() {
         return new BinaryRanker();
     }
+
     /**
      * Creates a ranker based on the TF-IDF ranking model.
      *
      * <p>The returned {@link Ranker} implementation computes inverse document frequency
      * (IDF) and uses it together with term frequency (TF) from document metadata to score
      * documents. Callers must take snapshots after ingestion is complete before constructing
-     * the ranker — the ranker sees only the state captured at snapshot time.</p>
+     * the ranker — the ranker sees only the state captured at snapshot time.
      *
      * @param corpus frozen corpus view providing document-level statistics
-     * @param index frozen index view used to obtain document frequency
+     * @param index  frozen index view used to obtain document frequency
      * @return a ranker capable of computing TF-IDF values for terms
      */
     public static Ranker tfIdf(final CorpusSnapshot corpus, final IndexSnapshot index) {
@@ -72,28 +69,24 @@ public final class Rankers {
      *
      * <p>The returned {@link Ranker} implementation computes BM25 using term frequency and
      * document length from document metadata, and document frequency from the index snapshot.
-     * Callers must take snapshots after ingestion is complete before constructing the ranker.</p>
+     * Callers must take snapshots after ingestion is complete before constructing the ranker.
      *
      * @param corpus frozen corpus view providing document-level statistics
-     * @param index frozen index view used to obtain document frequency
+     * @param index  frozen index view used to obtain document frequency
      * @return a ranker capable of computing BM25 values for terms
      */
     public static Ranker bm25(final CorpusSnapshot corpus, final IndexSnapshot index) {
         return new Bm25Ranker(corpus, index);
     }
 
+    // -----------------------------------------------------------------------
+    // BinaryRanker
+    // -----------------------------------------------------------------------
+
     /**
-     * Simple {@link Ranker} implementation based on binary term presence.
+     * Binary {@link Ranker}: every matched term contributes {@code 1.0}; everything else is {@code 0.0}.
      *
-     * This implementation does not use real inverse document frequency.
-     * Instead, it returns a neutral value of {@code 1.0} for IDF so the
-     * contract remains consistent across ranking strategies.
-     *
-     * A term contributes:
-     * <ul>
-     *   <li>{@code 1.0} if it is present in the document</li>
-     *   <li>{@code 0.0} if the term is invalid or the posting is missing</li>
-     * </ul>
+     * <p>IDF is always {@code 1.0} (neutral) so the contract remains consistent across strategies.
      */
     private static class BinaryRanker implements Ranker {
 
@@ -103,33 +96,23 @@ public final class Rankers {
         }
 
         @Override
-        public double score(final String term, final Posting posting) {
+        public TermScoring evaluate(final String term, final Posting posting, final RankingContext context) {
             if (term == null || term.isBlank() || posting == null) {
-                return 0;
+                final String safeTerm = term != null ? term : "";
+                return new BinaryTermScoring(safeTerm, 0.0, Optional.empty(), 0.0);
             }
-
-            return 1.0;
+            final Optional<FieldBoost> fieldBoost = TermScorings.computeFieldBoost(posting, context);
+            final double contribution = TermScorings.applyBoost(1.0, fieldBoost);
+            return new BinaryTermScoring(term, 1.0, fieldBoost, contribution);
         }
     }
 
+    // -----------------------------------------------------------------------
+    // TfIdfRanker
+    // -----------------------------------------------------------------------
+
     /**
-     * Default {@link Ranker} implementation computing inverse
-     * document frequency (IDF).
-     *
-     * This implementation relies on two statistics:
-     * <ul>
-     *   <li>N  – total number of documents in the corpus</li>
-     *   <li>df – number of documents containing the term</li>
-     * </ul>
-     *
-     * Using the classical formula:
-     *
-     * <pre>
-     * idf = log(N / df)
-     * </pre>
-     *
-     * This class is intentionally package-private and exposed
-     * through the {@link Rankers} factory methods.
+     * TF-IDF {@link Ranker} using sublinear TF and classic IDF ({@code log(N/df)}).
      */
     private static class TfIdfRanker implements Ranker {
 
@@ -137,95 +120,62 @@ public final class Rankers {
         private final IndexSnapshot index;
         private final Map<String, Double> idfCache = new ConcurrentHashMap<>();
 
-        public TfIdfRanker(final CorpusSnapshot corpus, final IndexSnapshot index) {
+        TfIdfRanker(final CorpusSnapshot corpus, final IndexSnapshot index) {
             this.corpus = corpus;
             this.index = index;
         }
 
-        /**
-         * Computes the inverse document frequency for a term.
-         *
-         * @param term normalized term
-         * @return IDF value based on corpus and index statistics
-         */
         @Override
         public double idf(final String term) {
             if (term == null || term.isBlank()) {
                 return 0;
             }
-
-            // compute or retrieve from cache
             return idfCache.computeIfAbsent(term, t -> {
                 final int corpusSize = corpus.statistics().documentCount();
-
                 final List<Posting> postings = index.getPostings(t);
                 final int documentFrequency = (postings == null) ? 0 : postings.size();
-
                 if (documentFrequency == 0 || corpusSize == 0) {
                     return 0.0;
                 }
-
-                // classical idf = log(N / df)
                 return TermWeightingUtils.classicIdf(corpusSize, documentFrequency);
             });
         }
 
-        /**
-         * Computes the TF-IDF contribution of a term for a specific posting.
-         *
-         * @param term normalized term
-         * @param posting posting identifying the matching document for the term
-         * @return TF-IDF score contribution for the term-document pair
-         */
         @Override
-        public double score(final String term, final Posting posting) {
+        public TermScoring evaluate(final String term, final Posting posting, final RankingContext context) {
             if (term == null || term.isBlank() || posting == null) {
-                return 0;
+                final String safeTerm = term != null ? term : "";
+                return new TfIdfTermScoring(safeTerm, 0, 0.0, 0.0, 0.0, Optional.empty(), 0.0);
             }
-
             final int tf = posting.termFrequency();
             if (tf <= 0) {
-                return 0;
+                return new TfIdfTermScoring(term, 0, 0.0, idf(term), 0.0, Optional.empty(), 0.0);
             }
-
             final double sublinearTf = TermWeightingUtils.sublinearTf(tf);
-            return sublinearTf * idf(term);
+            final double idfValue = idf(term);
+            final double base = sublinearTf * idfValue;
+            final Optional<FieldBoost> fieldBoost = TermScorings.computeFieldBoost(posting, context);
+            final double contribution = TermScorings.applyBoost(base, fieldBoost);
+            return new TfIdfTermScoring(term, tf, sublinearTf, idfValue, base, fieldBoost, contribution);
         }
-
-
     }
 
-    private static int extractDocumentLength(final CorpusSnapshot corpus, final Posting posting) {
-        final Optional<Document> documentOpt = corpus.get(posting.documentId());
-        if (documentOpt.isEmpty() || documentOpt.get().metadata() == null) {
-            return 0;
-        }
-
-        final Integer documentLength = documentOpt.get().metadata().length();
-        if (documentLength == null) {
-            return 0;
-        }
-
-        return documentLength;
-    }
+    // -----------------------------------------------------------------------
+    // Bm25Ranker
+    // -----------------------------------------------------------------------
 
     /**
-     * Default {@link Ranker} implementation computing BM25 scores.
+     * BM25 {@link Ranker} with hardcoded k₁=1.2 and b=0.75.
      *
-     * This implementation relies on:
-     * <ul>
-     *   <li>N     – total number of documents in the corpus</li>
-     *   <li>df    – number of documents containing the term</li>
-     *   <li>tf    – term frequency in the current document</li>
-     *   <li>dl    – length of the current document</li>
-     *   <li>avgdl – average document length in the corpus</li>
-     * </ul>
-     *
-     * Using the BM25 formula:
-     *
+     * <p>Formula:
      * <pre>
-     * score = idf(t) * (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (dl / avgdl)))
+     * normalization = 1 - b + b × (dl / avgdl)
+     * score = idf(t) × (tf × (k1 + 1)) / (tf + k1 × normalization)
      * </pre>
+     *
+     * <p>The actual k₁ and b values are exposed on {@link Bm25TermScoring} returned by
+     * {@link #evaluate} so callers can inspect which parameters produced a given score.
+     * Making them publicly configurable is deferred to a future task.
      */
     private static class Bm25Ranker implements Ranker {
 
@@ -234,22 +184,15 @@ public final class Rankers {
 
         private final CorpusSnapshot corpus;
         private final IndexSnapshot index;
-        // Saturation
         private final double k1;
-        // Length normalization
         private final double b;
         private final Map<String, Double> idfCache = new ConcurrentHashMap<>();
 
-        public Bm25Ranker(final CorpusSnapshot corpus, final IndexSnapshot index) {
+        Bm25Ranker(final CorpusSnapshot corpus, final IndexSnapshot index) {
             this(corpus, index, DEFAULT_K1, DEFAULT_B);
         }
 
-        public Bm25Ranker(
-                final CorpusSnapshot corpus,
-                final IndexSnapshot index,
-                final double k1,
-                final double b
-        ) {
+        Bm25Ranker(final CorpusSnapshot corpus, final IndexSnapshot index, final double k1, final double b) {
             this.corpus = corpus;
             this.index = index;
             this.k1 = k1;
@@ -261,52 +204,55 @@ public final class Rankers {
             if (term == null || term.isBlank()) {
                 return 0;
             }
-
             return idfCache.computeIfAbsent(term, t -> {
                 final int corpusSize = corpus.statistics().documentCount();
                 final List<Posting> postings = index.getPostings(t);
                 final int documentFrequency = (postings == null) ? 0 : postings.size();
-
                 if (documentFrequency == 0 || corpusSize == 0) {
                     return 0.0;
                 }
-
                 return TermWeightingUtils.bm25Idf(corpusSize, documentFrequency);
             });
         }
 
         @Override
-        public double score(final String term, final Posting posting) {
+        public TermScoring evaluate(final String term, final Posting posting, final RankingContext context) {
             if (term == null || term.isBlank() || posting == null) {
-                return 0;
+                final String safeTerm = term != null ? term : "";
+                return new Bm25TermScoring(safeTerm, 0, 0.0, 0, 0.0, k1, b, 0.0, 0.0, Optional.empty(), 0.0);
             }
-
             final int tf = posting.termFrequency();
-            if (tf <= 0) {
-                return 0;
+            final int documentLength = extractDocumentLength(corpus, posting);
+            final double averageDocumentLength = corpus.statistics().averageDocumentLength();
+            final double idfValue = idf(term);
+            if (tf <= 0 || documentLength <= 0 || averageDocumentLength <= 0) {
+                return new Bm25TermScoring(term, tf, idfValue, documentLength, averageDocumentLength,
+                        k1, b, 0.0, 0.0, Optional.empty(), 0.0);
             }
-
-            final Integer documentLengthValue = extractDocumentLength(corpus, posting);
-            if (Objects.isNull(documentLengthValue) || documentLengthValue <= 0) {
-                return 0;
-            }
-
-            final CorpusStatistics statistics = corpus.statistics();
-            final double averageDocumentLength = statistics.averageDocumentLength();
-            if (averageDocumentLength <= 0) {
-                return 0;
-            }
-
-            final double documentLength = documentLengthValue.doubleValue();
             final double normalization = 1.0 - b + b * (documentLength / averageDocumentLength);
             final double numerator = tf * (k1 + 1.0);
             final double denominator = tf + k1 * normalization;
-
-            if (denominator == 0) {
-                return 0;
-            }
-
-            return idf(term) * (numerator / denominator);
+            final double base = denominator == 0.0 ? 0.0 : idfValue * (numerator / denominator);
+            final Optional<FieldBoost> fieldBoost = TermScorings.computeFieldBoost(posting, context);
+            final double contribution = TermScorings.applyBoost(base, fieldBoost);
+            return new Bm25TermScoring(term, tf, idfValue, documentLength, averageDocumentLength,
+                    k1, b, normalization, base, fieldBoost, contribution);
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Shared helpers
+    // -----------------------------------------------------------------------
+
+    private static int extractDocumentLength(final CorpusSnapshot corpus, final Posting posting) {
+        final Optional<Document> documentOpt = corpus.get(posting.documentId());
+        if (documentOpt.isEmpty() || documentOpt.get().metadata() == null) {
+            return 0;
+        }
+        final Integer documentLength = documentOpt.get().metadata().length();
+        if (documentLength == null) {
+            return 0;
+        }
+        return documentLength;
     }
 }

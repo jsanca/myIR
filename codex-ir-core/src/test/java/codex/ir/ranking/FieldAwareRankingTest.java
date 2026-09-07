@@ -22,9 +22,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for IR-4 — Field-Aware Ranking / Boosting.
@@ -312,6 +310,194 @@ class FieldAwareRankingTest {
 
         assertEquals(base, withUnknownField, 1e-12,
                 "Term in an unknown field must use weight 1.0 and leave the score unchanged");
+    }
+
+    // -----------------------------------------------------------------------
+    // T-16 through T-21 — evaluate() exposes FieldBoost intermediates
+    // -----------------------------------------------------------------------
+
+    @Test
+    void evaluateShouldExposeTitleBoostFactorWhenTermOccursOnlyInTitle() {
+        // "java" in title (tf=1), title weight=3.0
+        // boostFactor = (1 × 3.0) / 1 = 3.0
+        // contribution = base × 3.0
+        final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
+        final InvertedIndex index = InvertedIndexes.inMemory();
+        final Indexer indexer = Indexers.lexical(corpus, index, TOKENIZER, NORMALIZER);
+
+        indexer.index(Document.builder().id("doc-title").field("title", "java platform").field("body", "introductory guide").build());
+        indexer.index(Document.builder().id("doc-other").rawContent("python scripting").build());
+
+        final CorpusSnapshot cs = corpus.snapshot();
+        final IndexSnapshot is = index.snapshot();
+        final Ranker ranker = Rankers.tfIdf(cs, is);
+
+        final Posting posting = is.getPostings("java").stream()
+                .filter(p -> "doc-title".equals(p.documentId()))
+                .findFirst().orElseThrow();
+
+        final RankingContext ctx = RankingContext.of(new FieldWeights(Map.of("title", 3.0, "body", 1.0)));
+        final TermScoring scoring = ranker.evaluate("java", posting, ctx);
+
+        assertTrue(scoring.fieldBoost().isPresent(), "title occurrence must produce a field boost");
+        final FieldBoost fb = scoring.fieldBoost().get();
+        // title-only: boostFactor = (1 × 3.0) / 1 = 3.0
+        assertEquals(3.0, fb.boostFactor(), 1e-9, "title-only boost factor must equal the title weight");
+        assertEquals(scoring.base() * 3.0, scoring.contribution(), 1e-9,
+                "contribution must be base × boostFactor");
+    }
+
+    @Test
+    void evaluateShouldExposeBodyBoostFactorWhenTermOccursOnlyInBody() {
+        // "java" in body (tf=1), body weight=2.0
+        // boostFactor = (1 × 2.0) / 1 = 2.0
+        // contribution = base × 2.0
+        final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
+        final InvertedIndex index = InvertedIndexes.inMemory();
+        final Indexer indexer = Indexers.lexical(corpus, index, TOKENIZER, NORMALIZER);
+
+        indexer.index(Document.builder().id("doc-body").field("title", "programming guide").field("body", "java tutorial").build());
+        indexer.index(Document.builder().id("doc-other").rawContent("python scripting").build());
+
+        final CorpusSnapshot cs = corpus.snapshot();
+        final IndexSnapshot is = index.snapshot();
+        final Ranker ranker = Rankers.tfIdf(cs, is);
+
+        final Posting posting = is.getPostings("java").stream()
+                .filter(p -> "doc-body".equals(p.documentId()))
+                .findFirst().orElseThrow();
+
+        final RankingContext ctx = RankingContext.of(new FieldWeights(Map.of("title", 3.0, "body", 2.0)));
+        final TermScoring scoring = ranker.evaluate("java", posting, ctx);
+
+        assertTrue(scoring.fieldBoost().isPresent(), "body occurrence must produce a field boost");
+        final FieldBoost fb = scoring.fieldBoost().get();
+        // body-only: boostFactor = (1 × 2.0) / 1 = 2.0
+        assertEquals(2.0, fb.boostFactor(), 1e-9, "body-only boost factor must equal the body weight");
+        assertEquals(scoring.base() * 2.0, scoring.contribution(), 1e-9,
+                "contribution must be base × boostFactor");
+    }
+
+    @Test
+    void evaluateShouldComputeFrequencyWeightedAverageBoostForMultiFieldOccurrence() {
+        // "java" in title (tf=1, weight=3.0) and body (tf=1, weight=1.0)
+        // boostFactor = (1×3.0 + 1×1.0) / (1+1) = 4.0/2 = 2.0
+        // contribution = base × 2.0
+        final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
+        final InvertedIndex index = InvertedIndexes.inMemory();
+        final Indexer indexer = Indexers.lexical(corpus, index, TOKENIZER, NORMALIZER);
+
+        indexer.index(Document.builder().id("mixed-doc").field("title", "java platform").field("body", "java tutorial").build());
+        indexer.index(Document.builder().id("other-doc").rawContent("python scripting").build());
+
+        final CorpusSnapshot cs = corpus.snapshot();
+        final IndexSnapshot is = index.snapshot();
+        final Ranker ranker = Rankers.tfIdf(cs, is);
+
+        final Posting posting = is.getPostings("java").stream()
+                .filter(p -> "mixed-doc".equals(p.documentId()))
+                .findFirst().orElseThrow();
+
+        final RankingContext ctx = RankingContext.of(new FieldWeights(Map.of("title", 3.0, "body", 1.0)));
+        final TermScoring scoring = ranker.evaluate("java", posting, ctx);
+
+        assertTrue(scoring.fieldBoost().isPresent(), "multi-field occurrence must produce a field boost");
+        final FieldBoost fb = scoring.fieldBoost().get();
+        // boostFactor = (1×3.0 + 1×1.0) / 2 = 2.0
+        assertEquals(2.0, fb.boostFactor(), 1e-9,
+                "boost factor must be the frequency-weighted average of field weights");
+        assertEquals(scoring.base() * 2.0, scoring.contribution(), 1e-9,
+                "contribution must be base × boostFactor");
+    }
+
+    @Test
+    void evaluateShouldMapUnknownFieldToWeightOneInEffectiveWeightsAndLeaveScoreUnchanged() {
+        // "java" in "custom" field — not present in FieldWeights
+        // effectiveWeights["custom"] == 1.0   (default for unknown field)
+        // boostFactor = (1 × 1.0) / 1 = 1.0
+        // contribution = base × 1.0 = base
+        final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
+        final InvertedIndex index = InvertedIndexes.inMemory();
+        final Indexer indexer = Indexers.lexical(corpus, index, TOKENIZER, NORMALIZER);
+
+        indexer.index(Document.builder().id("custom-doc").field("custom", "java platform").build());
+        indexer.index(Document.builder().id("other-doc").rawContent("python scripting").build());
+
+        final CorpusSnapshot cs = corpus.snapshot();
+        final IndexSnapshot is = index.snapshot();
+        final Ranker ranker = Rankers.tfIdf(cs, is);
+
+        final Posting posting = is.getPostings("java").stream()
+                .filter(p -> "custom-doc".equals(p.documentId()))
+                .findFirst().orElseThrow();
+
+        // context has no weight for "custom" → must default to 1.0
+        final RankingContext ctx = RankingContext.of(new FieldWeights(Map.of("title", 3.0)));
+        final TermScoring scoring = ranker.evaluate("java", posting, ctx);
+
+        assertTrue(scoring.fieldBoost().isPresent(), "non-neutral context with non-empty fieldFreqs must produce boost");
+        final FieldBoost fb = scoring.fieldBoost().get();
+        assertEquals(1.0, fb.effectiveWeights().get("custom"), 1e-9,
+                "unknown field must be recorded with effective weight 1.0");
+        assertEquals(1.0, fb.boostFactor(), 1e-9,
+                "boost factor must be 1.0 when only field has effective weight 1.0");
+        assertEquals(scoring.base(), scoring.contribution(), 1e-9,
+                "contribution must equal base when boost factor is 1.0");
+    }
+
+    @Test
+    void evaluateWithNeutralContextShouldReturnEmptyFieldBoostAndContributionEqualToBase() {
+        // neutral RankingContext → TermScorings.computeFieldBoost returns empty
+        final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
+        final InvertedIndex index = InvertedIndexes.inMemory();
+        final Indexer indexer = Indexers.lexical(corpus, index, TOKENIZER, NORMALIZER);
+
+        indexer.index(Document.builder().id("doc-title").field("title", "java platform").build());
+        indexer.index(Document.builder().id("doc-other").rawContent("python scripting").build());
+
+        final CorpusSnapshot cs = corpus.snapshot();
+        final IndexSnapshot is = index.snapshot();
+        final Ranker ranker = Rankers.tfIdf(cs, is);
+
+        final Posting posting = is.getPostings("java").stream()
+                .filter(p -> "doc-title".equals(p.documentId()))
+                .findFirst().orElseThrow();
+
+        final TermScoring scoring = ranker.evaluate("java", posting, RankingContext.neutral());
+
+        assertTrue(scoring.fieldBoost().isEmpty(), "neutral context must produce empty fieldBoost");
+        assertEquals(scoring.base(), scoring.contribution(), 1e-9,
+                "contribution must equal base when no field boost is applied");
+    }
+
+    @Test
+    void evaluateWithRawContentDocumentShouldReturnEmptyFieldBoostAndContributionEqualToBase() {
+        // raw-content document has empty fieldFrequencies → no boost regardless of context weights
+        final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
+        final InvertedIndex index = InvertedIndexes.inMemory();
+        final Indexer indexer = Indexers.lexical(corpus, index, TOKENIZER, NORMALIZER);
+
+        indexer.index(Document.builder().id("raw-doc").rawContent("java search engine").build());
+        indexer.index(Document.builder().id("raw-doc2").rawContent("python scripting").build());
+
+        final CorpusSnapshot cs = corpus.snapshot();
+        final IndexSnapshot is = index.snapshot();
+        final Ranker ranker = Rankers.tfIdf(cs, is);
+
+        final Posting posting = is.getPostings("java").stream()
+                .filter(p -> "raw-doc".equals(p.documentId()))
+                .findFirst().orElseThrow();
+
+        assertTrue(posting.fieldFrequencies().isEmpty(),
+                "raw-content document must have empty fieldFrequencies");
+
+        final RankingContext heavyCtx = RankingContext.of(new FieldWeights(Map.of("title", 100.0)));
+        final TermScoring scoring = ranker.evaluate("java", posting, heavyCtx);
+
+        assertTrue(scoring.fieldBoost().isEmpty(),
+                "empty fieldFrequencies must produce empty fieldBoost regardless of context weights");
+        assertEquals(scoring.base(), scoring.contribution(), 1e-9,
+                "contribution must equal base when fieldFrequencies is empty");
     }
 
     // -----------------------------------------------------------------------

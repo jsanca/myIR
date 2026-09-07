@@ -3,6 +3,7 @@ package codex.ir.ranking;
 import codex.ir.Document;
 import codex.ir.corpus.Corpora;
 import codex.ir.corpus.Corpus;
+import codex.ir.corpus.CorpusSnapshot;
 import codex.ir.indexer.*;
 import codex.ir.normalizer.Normalizer;
 import codex.ir.normalizer.Normalizers;
@@ -13,8 +14,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;;
 
 class RankersTest {
 
@@ -276,6 +276,139 @@ class RankersTest {
                 "Expected BM25 to return 0 for a document with null length metadata. "
                 + "The document matches the query but cannot be scored because its metadata "
                 + "lacks document length information.");
+    }
+
+    // -----------------------------------------------------------------------
+    // T-08 — BinaryRanker: evaluate contribution == score (bit-equal)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void binaryRankerEvaluateShouldReturnBinaryTermScoringWithContributionEqualToScore() {
+        final Ranker ranker = Rankers.binary();
+        final Posting posting = new Posting("doc-1", 3, List.of(1, 4, 7), Map.of());
+
+        final double score = ranker.score("java", posting);
+        final TermScoring scoring = ranker.evaluate("java", posting, RankingContext.neutral());
+
+        assertInstanceOf(BinaryTermScoring.class, scoring);
+        assertEquals(score, scoring.contribution(), 0.0, "evaluate contribution must equal score exactly");
+        assertEquals(1.0, scoring.base(), 0.0);
+        assertTrue(scoring.fieldBoost().isEmpty());
+    }
+
+    // -----------------------------------------------------------------------
+    // T-10 — TfIdfRanker: evaluate contribution == score (bit-equal)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void tfIdfRankerEvaluateShouldReturnTfIdfTermScoringWithContributionEqualToScore() {
+        final Tokenizer tokenizer = Tokenizers.whitespace();
+        final Normalizer normalizer = Normalizers.english();
+        final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
+        final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
+        final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
+
+        indexer.index(Document.builder().id("doc1.txt").rawContent("Java is a programming language").build());
+        indexer.index(Document.builder().id("doc2.txt").rawContent("A search engine uses an inverted index").build());
+        indexer.index(Document.builder().id("doc3.txt").rawContent("Java can be used to build a search engine").build());
+
+        final IndexSnapshot is = invertedIndex.snapshot();
+        final CorpusSnapshot cs = corpus.snapshot();
+        final Ranker ranker = Rankers.tfIdf(cs, is);
+        final Posting javaPosting = is.getPostings("java").stream()
+                .filter(p -> "doc1.txt".equals(p.documentId()))
+                .findFirst().orElseThrow();
+
+        final double score = ranker.score("java", javaPosting);
+        final TermScoring scoring = ranker.evaluate("java", javaPosting, RankingContext.neutral());
+
+        assertInstanceOf(TfIdfTermScoring.class, scoring);
+        assertEquals(score, scoring.contribution(), 0.0, "evaluate contribution must equal score exactly");
+    }
+
+    // -----------------------------------------------------------------------
+    // T-13 — Bm25Ranker: k1 and b read from evaluate() return value
+    // -----------------------------------------------------------------------
+
+    @Test
+    void bm25RankerEvaluateShouldReturnK1AndBFromRankerInternals() {
+        final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
+        final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
+
+        corpus.add(Document.builder().id("doc-1").rawContent("java search").length(2).uniqueTerms(2).build());
+        corpus.add(Document.builder().id("doc-2").rawContent("python code").length(2).uniqueTerms(2).build());
+        invertedIndex.add("java", "doc-1", 0);
+        invertedIndex.add("python", "doc-2", 0);
+
+        final IndexSnapshot is = invertedIndex.snapshot();
+        final Ranker ranker = Rankers.bm25(corpus.snapshot(), is);
+        final Posting posting = is.getPostings("java").stream()
+                .filter(p -> "doc-1".equals(p.documentId()))
+                .findFirst().orElseThrow();
+
+        final TermScoring scoring = ranker.evaluate("java", posting, RankingContext.neutral());
+
+        assertInstanceOf(Bm25TermScoring.class, scoring);
+        final Bm25TermScoring bm25 = (Bm25TermScoring) scoring;
+        assertEquals(1.2,  bm25.k1(), 0.0, "k1 must be the hardcoded 1.2");
+        assertEquals(0.75, bm25.b(),  0.0, "b must be the hardcoded 0.75");
+    }
+
+    // -----------------------------------------------------------------------
+    // T-14 — Bm25Ranker: well-formed zero scoring when document length is 0
+    // -----------------------------------------------------------------------
+
+    @Test
+    void bm25RankerEvaluateShouldReturnWellFormedZeroScoringWhenDocumentLengthIsZero() {
+        final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
+        final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
+
+        corpus.add(Document.builder().id("doc-with-length").rawContent("java search engine").length(3).uniqueTerms(3).build());
+        corpus.add(Document.builder().id("doc-no-length").rawContent("java").build());
+        invertedIndex.add("java", "doc-with-length", 0);
+        invertedIndex.add("java", "doc-no-length", 0);
+
+        final IndexSnapshot is = invertedIndex.snapshot();
+        final Ranker ranker = Rankers.bm25(corpus.snapshot(), is);
+        final Posting posting = is.getPostings("java").stream()
+                .filter(p -> "doc-no-length".equals(p.documentId()))
+                .findFirst().orElseThrow();
+
+        final TermScoring scoring = ranker.evaluate("java", posting, RankingContext.neutral());
+
+        assertInstanceOf(Bm25TermScoring.class, scoring);
+        assertEquals("java", scoring.term(), "term must be preserved even on zero contribution");
+        assertEquals(0.0, scoring.contribution(), 0.0, "contribution must be 0.0 when document length is 0");
+        assertEquals(0.0, ranker.score("java", posting), 0.0);
+    }
+
+    // -----------------------------------------------------------------------
+    // T-15 — Bm25Ranker: evaluate contribution == score (bit-equal)
+    // -----------------------------------------------------------------------
+
+    @Test
+    void bm25RankerEvaluateShouldReturnContributionEqualToScore() {
+        final Tokenizer tokenizer = Tokenizers.whitespace();
+        final Normalizer normalizer = Normalizers.english();
+        final Corpus corpus = Corpora.inMemory(Corpora.CorpusStatisticsRefreshMode.EAGER);
+        final InvertedIndex invertedIndex = InvertedIndexes.inMemory();
+        final Indexer indexer = Indexers.lexical(corpus, invertedIndex, tokenizer, normalizer);
+
+        indexer.index(Document.builder().id("doc1.txt").rawContent("Java is a programming language").build());
+        indexer.index(Document.builder().id("doc2.txt").rawContent("Java can be used to build a search engine").build());
+
+        final IndexSnapshot is = invertedIndex.snapshot();
+        final CorpusSnapshot cs = corpus.snapshot();
+        final Ranker ranker = Rankers.bm25(cs, is);
+        final Posting posting = is.getPostings("java").stream()
+                .filter(p -> "doc1.txt".equals(p.documentId()))
+                .findFirst().orElseThrow();
+
+        final double score = ranker.score("java", posting);
+        final TermScoring scoring = ranker.evaluate("java", posting, RankingContext.neutral());
+
+        assertInstanceOf(Bm25TermScoring.class, scoring);
+        assertEquals(score, scoring.contribution(), 0.0, "evaluate contribution must equal score exactly");
     }
 
     @Test
