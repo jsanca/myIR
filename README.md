@@ -108,6 +108,35 @@ Vector retrieval weighs normalized query terms, creates a sparse query vector us
 
 All core storage remains in memory by design.
 
+### Score Explanation
+
+`SimpleSearcher` implements `ExplainableSearcher`, a capability interface that adds `explain(query, documentId) → Optional<ScoreExplanation>`. The explanation carries a `List<TermScoring>` — one entry per matched query term — exposing the formula intermediates (TF, IDF, normalization, field boost) that produced the final score.
+
+Check `instanceof` before calling `explain`; `VectorSearcher` does not implement the interface.
+
+```java
+Searcher searcher = Searchers.lexical(indexSnapshot, corpusSnapshot,
+        tokenizer, normalizer, Rankers.bm25(corpusSnapshot, indexSnapshot));
+
+List<SearchResult> results = searcher.searchDetailed("java search");
+
+if (searcher instanceof ExplainableSearcher es) {
+    results.stream().findFirst().ifPresent(r ->
+        es.explain("java search", r.documentId()).ifPresent(explanation -> {
+            System.out.println("Score: " + explanation.score());
+            for (TermScoring ts : explanation.contributions()) {
+                System.out.printf("  %-12s base=%.4f boost=%s contribution=%.4f%n",
+                        ts.term(), ts.base(),
+                        ts.fieldBoost().map(fb -> String.format("%.2f", fb.boostFactor())).orElse("none"),
+                        ts.contribution());
+            }
+        })
+    );
+}
+```
+
+`explain` uses the same tokenization and normalization pipeline as `searchDetailed`, so the score it reports is numerically identical to the `SearchResult.score()` for any matching document.
+
 ## Web Ingestion
 
 `codex-ir-web` exposes reusable crawling and extraction contracts while keeping implementations under internal, non-exported packages.

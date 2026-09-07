@@ -8,11 +8,12 @@ import codex.ir.normalizer.Normalizer;
 import codex.ir.tokenizer.Tokenizer;
 import codex.ir.ranking.Ranker;
 import codex.ir.ranking.RankingContext;
+import codex.ir.ranking.ScoreExplanation;
+import codex.ir.ranking.TermScoring;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Simple in-memory implementation of {@link Searcher}.
@@ -28,7 +29,7 @@ import java.util.stream.Collectors;
  *  - scores results using the configured {@link Ranker}
  *  - returns either documents or richer {@link SearchResult} instances
  */
-public class SimpleSearcher implements Searcher {
+public class SimpleSearcher implements ExplainableSearcher {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SimpleSearcher.class);
 
@@ -122,18 +123,11 @@ public class SimpleSearcher implements Searcher {
 
         LOGGER.debug("Search query {}", query);
 
-        final List<String> queryTokens = this.tokenizer.tokenize(query);
+        final List<String> analyzedTerms = analyzeQuery(query);
         final Map<String, Set<String>> matchedTermsByDocumentIdMap = new LinkedHashMap<>();
         final Map<String, Double> scoreByDocumentIdMap = new LinkedHashMap<>();
 
-        for (final String token : queryTokens) {
-            final Optional<String> normalizedTokenOpt = this.normalizer.normalize(token);
-
-            if (normalizedTokenOpt.isEmpty()) {
-                continue;
-            }
-
-            final String normalizedTerm = normalizedTokenOpt.get();
+        for (final String normalizedTerm : analyzedTerms) {
             LOGGER.trace("Searching normalized term '{}'", normalizedTerm);
 
             final List<Posting> postings = this.invertedIndex.getPostings(normalizedTerm);
@@ -179,5 +173,96 @@ public class SimpleSearcher implements Searcher {
                 .toList());
 
         return results;
+    }
+
+
+    /**
+     * Returns a score explanation for {@code documentId} relative to the analyzed query.
+     *
+     * <p>Returns {@link Optional#empty()} when:
+     * <ul>
+     *   <li>{@code query} is {@code null} or blank;</li>
+     *   <li>{@code documentId} is {@code null} or not present in the corpus snapshot;</li>
+     *   <li>the analyzed query is empty (all tokens are stop words);</li>
+     *   <li>no analyzed term has a posting for {@code documentId}.</li>
+     * </ul>
+     *
+     * <p>The analysis pipeline and scoring path are identical to those used by
+     * {@link #searchDetailed}, guaranteeing that score conservation holds (UC-6, T-02, T-27).
+     *
+     * @param query      raw user query
+     * @param documentId identifier of the document to explain
+     * @return score explanation, or empty
+     */
+    @Override
+    public Optional<ScoreExplanation> explain(final String query, final String documentId) {
+
+        final Optional<List<String>> termsOpt = this.analyzeQueryIfValid(query, documentId);
+
+        if (termsOpt.isPresent()) {
+
+            final List<TermScoring> contributions = new ArrayList<>();
+
+            for (final String term : termsOpt.get()) {
+                invertedIndex.getPostings(term).stream()
+                        .filter(posting -> documentId.equals(posting.documentId()))
+                        .findFirst()
+                        .ifPresent(posting ->
+                                contributions.add(
+                                        ranker.evaluate(term, posting, rankingContext)
+                                )
+                        );
+            }
+
+            if (!contributions.isEmpty()) {
+
+                double score = 0.0;
+                for (final TermScoring termScoring : contributions) {
+                    score = Double.sum(score, termScoring.contribution());
+                }
+                return Optional.of(new ScoreExplanation(query, documentId, score, contributions));
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    private Optional<List<String>> analyzeQueryIfValid(
+            final String query,
+            final String documentId) {
+
+        if (query == null || query.isBlank()) {
+            return Optional.empty();
+        }
+
+        if (documentId == null || corpus.get(documentId).isEmpty()) {
+            return Optional.empty();
+        }
+
+        final List<String> terms = analyzeQuery(query);
+
+        return terms.isEmpty()
+                ? Optional.empty()
+                : Optional.of(terms);
+    }
+
+    /**
+     * Tokenizes and normalizes {@code query}, returning analyzed terms in encounter order.
+     * Stop words and tokens that normalize to empty are excluded. Duplicate terms are
+     * preserved — if the same word appears twice, it appears twice in the returned list.
+     *
+     * <p>Both {@link #searchDetailed} and {@link #explain} delegate to this method so the
+     * analysis pipeline is never duplicated (UC-6, T-27).
+     *
+     * @param query raw user query (must not be null/blank — callers guard before calling)
+     * @return ordered list of normalized terms; may be empty if all tokens are stop words
+     */
+    private List<String> analyzeQuery(final String query) {
+        final List<String> tokens = tokenizer.tokenize(query);
+        final List<String> terms = new ArrayList<>(tokens.size());
+        for (final String token : tokens) {
+            normalizer.normalize(token).ifPresent(terms::add);
+        }
+        return terms;
     }
 }

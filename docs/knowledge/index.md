@@ -49,6 +49,8 @@ entry point; this index is the progressive-disclosure entry point for agents.
   - per-field term frequency in postings; whole-document behavior unchanged.
 - [IR-4: Field-Aware Ranking / Boosting](logs/core/ir-4-field-aware-ranking.md)
   - RankingContext and FieldWeights apply frequency-weighted field boosts.
+- [IR-5: Score Explanation](logs/core/ir-5-score-explanation.md)
+  - ExplainableSearcher, Ranker.evaluate, TermScoring hierarchy, FieldBoost, and ScoreExplanation.
 
 ### Site Exporter
 
